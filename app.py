@@ -13,60 +13,62 @@ st.set_page_config(
     page_icon="🏀"
 )
 
-# 2. Inyección CSS estilo Cyber-Dark Glassmorphism
+# 2. Inyección CSS estilo Cyber-NBA Dark
 st.markdown("""
 <style>
-    /* Fondo principal */
+    /* Estructura Base */
     .stApp {
-        background: linear-gradient(135deg, #0B0F19 0%, #111827 100%);
-        color: #F3F4F6;
-        font-family: 'Inter', system-ui, sans-serif;
+        background: radial-gradient(circle at top left, #0F172A 0%, #090D16 100%);
+        color: #F8FAFC;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Headers con estilo Neón */
-    h1 {
-        font-size: 2.2rem !important;
+    /* Header Principal */
+    .main-title {
+        font-size: 2.3rem !important;
         font-weight: 800 !important;
-        background: linear-gradient(90deg, #38BDF8 0%, #818CF8 100%);
+        background: linear-gradient(90deg, #38BDF8 0%, #818CF8 50%, #C084FC 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 0.2rem !important;
+        letter-spacing: -0.8px;
     }
     
-    /* Tarjetas KPI de alto contraste */
+    /* Tarjetas KPI Glassmorphism */
     div[data-testid="stMetric"] {
-        background: rgba(31, 41, 55, 0.6);
-        border: 1px solid rgba(75, 85, 99, 0.4);
-        backdrop-filter: blur(12px);
-        border-radius: 14px;
-        padding: 14px 18px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        transition: transform 0.2s ease, border-color 0.2s ease;
+        background: rgba(30, 41, 59, 0.45) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        backdrop-filter: blur(16px) !important;
+        border-radius: 14px !important;
+        padding: 14px 18px !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+        transition: all 0.25s ease-in-out !important;
     }
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        border-color: #38BDF8;
+        border-color: #38BDF8 !important;
+        transform: translateY(-3px) !important;
+        box-shadow: 0 12px 24px rgba(56, 189, 248, 0.15) !important;
     }
     
-    /* Pestañas de navegación */
+    /* Pestañas (Tabs) */
     button[data-baseweb="tab"] {
         font-size: 15px !important;
         font-weight: 700 !important;
-        color: #9CA3AF !important;
-        padding: 12px 24px !important;
-        border-radius: 8px 8px 0 0 !important;
+        color: #64748B !important;
+        padding: 12px 22px !important;
+        border-radius: 10px 10px 0 0 !important;
+        transition: all 0.2s !important;
     }
     button[aria-selected="true"] {
         color: #38BDF8 !important;
-        background: rgba(56, 189, 248, 0.1) !important;
+        background: rgba(56, 189, 248, 0.08) !important;
         border-bottom: 3px solid #38BDF8 !important;
     }
 
-    /* Tablas de Streamlit */
+    /* Tablas de datos */
     .stDataFrame {
-        border: 1px solid #374151;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -107,17 +109,17 @@ for cat in CATEGORIAS:
 # Header
 col_head1, col_head2 = st.columns([0.82, 0.18])
 with col_head1:
-    st.title("🏀 NBA Fantasy Analytics Pro")
-    st.caption("Plataforma con métricas avanzadas (TS%, Net Impact, Stocks) y gráficos interactivos con caras de jugadores.")
+    st.markdown('<p class="main-title">🏀 NBA Fantasy Analytics Pro</p>', unsafe_allow_html=True)
+    st.caption("Plataforma analítica con métricas avanzadas (TS%, Net Impact, Stocks) y matriz gráfica de cuadrantes tácticos.")
 
 with col_head2:
     with st.popover("ℹ️ Glosario de Métricas"):
         st.markdown("""
-        **Nuevas Líneas Estadísticas Avanzadas:**
+        **Líneas Estadísticas Avanzadas:**
         * **TS% (True Shooting):** `PTS / (2 * (FGA + 0.44 * FTA))`
-        * **AST/TO:** Ratio de Pases/Pérdidas. Un valor > 2.5 es elite.
-        * **STOCKS:** Suma directa de Robos + Tapones por partido.
-        * **NET_IMPACT:** Evaluación de impacto global ajustada por eficiencia de tiro y minutos.
+        * **AST/TO:** Ratio Asistencias/Pérdidas.
+        * **STOCKS:** Robos (STL) + Tapones (BLK).
+        * **NET_IMPACT:** Evaluación global ajustada por tiro y minutos.
         """)
 
 # Carga de datasets
@@ -146,11 +148,9 @@ filtro_busqueda = st.sidebar.text_input("🔍 Buscar Jugador o Equipo:", "")
 # Carga y cálculo dinámico de Métricas Avanzadas
 df = pd.read_csv(os.path.join(CARPETA_L2, f"L2_{temporada_sel}.csv"))
 
-# Recálculo de Z_CUSTOM
 cols_z_activas = [f"Z_{cat}" for cat in CATEGORIAS if cat not in punts_sel]
 df['Z_CUSTOM'] = df[cols_z_activas].sum(axis=1)
 
-# Añadir métricas avanzadas si no vienen en la capa Silver
 df['TS_PCT'] = df['PTS'] / (2 * (df['FGA'] + 0.44 * df['FTA']).replace(0, np.nan))
 df['TS_PCT'] = df['TS_PCT'].fillna(0)
 df['AST_TOV'] = (df['AST'] / df['TOV'].replace(0, np.nan)).fillna(df['AST'])
@@ -179,7 +179,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Leaderboard & Exportación", 
     "👤 Perfil Individual Pro", 
     "⚔️ Comparador Multi-Jugador (2-5)", 
-    "🎯 Scatter Plot con Fotos NBA"
+    "🎯 Matriz Scatter Plot Táctica"
 ])
 
 # TAB 1: LEADERBOARD
@@ -252,7 +252,7 @@ with tab2:
         fig_radar.update_layout(
             template="plotly_dark",
             polar=dict(
-                bgcolor='#1E293B',
+                bgcolor='#0F172A',
                 radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')
             ),
             title=f"Huella Radar: {jugador_sel}",
@@ -314,7 +314,7 @@ with tab3:
         fig_comp.update_layout(
             template="plotly_dark",
             polar=dict(
-                bgcolor='#1E293B',
+                bgcolor='#0F172A',
                 radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')
             ),
             title=f"Superposición Radar ({len(jugadores_sel)} Jugadores)",
@@ -339,10 +339,10 @@ with tab3:
             column_config=COLUMN_CONFIG
         )
 
-# TAB 4: SCATTER PLOT CON IMÁGENES OFICIALES DE JUGADORES
+# TAB 4: SCATTER PLOT CON ETIQUETAS DE CUADRANTE TÁCTICO
 with tab4:
-    st.subheader("🎯 Matriz Scatter Plot con Headshots Oficiales NBA")
-    st.caption("Visualiza las fotos de los jugadores superpuestas directamente en las coordenadas estadísticas.")
+    st.subheader("🎯 Matriz de Cuadrantes Tácticos y Oportunidades")
+    st.caption("Usa las etiquetas explicativas en las esquinas del gráfico para interpretar el perfil de cada jugador.")
 
     col_eje_x, col_eje_y, col_top = st.columns(3)
     
@@ -353,31 +353,32 @@ with tab4:
     with col_eje_y:
         eje_y = st.selectbox("Eje Y (Vertical):", opciones_metricas, index=9)
     with col_top:
-        num_fotos = st.slider("Número de fotos a renderizar:", min_value=10, max_value=60, value=30)
+        num_fotos = st.slider("Jugadores en gráfico:", min_value=10, max_value=60, value=30)
 
     df_scatter = df_ranking.head(num_fotos).copy()
 
-    # Base Scatter
+    # Base Scatter sin escala de color redundante
     fig_scatter = px.scatter(
         df_scatter,
         x=eje_x,
         y=eje_y,
-        color='Z_CUSTOM',
         hover_name='PLAYER_NAME',
         hover_data=['TEAM_ABBREVIATION', 'RANK', 'PTS', 'TS_PCT', 'NET_IMPACT'],
-        color_continuous_scale='Viridis',
-        title=f"Scatter Plot con Fotos: {eje_x} vs {eje_y}"
+        title=f"Matriz Táctica: {eje_y} vs {eje_x}"
     )
 
-    # Calcular la escala proporcional de las fotos según el rango de los ejes
+    # Ocultar marcadores de puntos para dejar solo los headshots limpios
+    fig_scatter.update_traces(marker=dict(size=0, opacity=0))
+
+    # Dimensionamiento dinámico de fotos
     x_min, x_max = df_scatter[eje_x].min(), df_scatter[eje_x].max()
     y_min, y_max = df_scatter[eje_y].min(), df_scatter[eje_y].max()
     
     x_range = (x_max - x_min) if (x_max - x_min) != 0 else 1
     y_range = (y_max - y_min) if (y_max - y_min) != 0 else 1
 
-    size_x = x_range * 0.075
-    size_y = y_range * 0.075
+    size_x = x_range * 0.08
+    size_y = y_range * 0.08
 
     # Superponer fotos CDN de cada jugador
     for _, row in df_scatter.iterrows():
@@ -394,21 +395,58 @@ with tab4:
                 xanchor="center",
                 yanchor="middle",
                 sizing="contain",
-                opacity=0.9,
+                opacity=0.92,
                 layer="above"
             )
         )
 
-    # Líneas medias de cuadrantes
-    fig_scatter.add_vline(x=df_scatter[eje_x].mean(), line_dash="dash", line_color="#94A3B8", opacity=0.5)
-    fig_scatter.add_hline(y=df_scatter[eje_y].mean(), line_dash="dash", line_color="#94A3B8", opacity=0.5)
+    # Líneas medias divisoras de cuadrantes
+    media_x = df_scatter[eje_x].mean()
+    media_y = df_scatter[eje_y].mean()
+
+    fig_scatter.add_vline(x=media_x, line_dash="dash", line_color="#64748B", opacity=0.6)
+    fig_scatter.add_hline(y=media_y, line_dash="dash", line_color="#64748B", opacity=0.6)
+
+    # ANOTACIONES EN LAS 4 ESQUINAS (EXPLICACIÓN TÁCTICA DE CUADRANTES)
+    fig_scatter.add_annotation(
+        x=0.98, y=0.98, xref="paper", yref="paper",
+        text=f"💎 TOP ELITE<br>(+ {eje_y} / + {eje_x})",
+        showarrow=False, align="right",
+        font=dict(size=12, color="#10B981"),
+        bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#10B981", borderwidth=1, borderpad=6
+    )
+
+    fig_scatter.add_annotation(
+        x=0.02, y=0.98, xref="paper", yref="paper",
+        text=f"🎯 CHOLLOS / EFICIENTES<br>(+ {eje_y} / - {eje_x})",
+        showarrow=False, align="left",
+        font=dict(size=12, color="#38BDF8"),
+        bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#38BDF8", borderwidth=1, borderpad=6
+    )
+
+    fig_scatter.add_annotation(
+        x=0.98, y=0.02, xref="paper", yref="paper",
+        text=f"⚠️ VOLUMEN SIN EFICIENCIA<br>(- {eje_y} / + {eje_x})",
+        showarrow=False, align="right",
+        font=dict(size=12, color="#F59E0B"),
+        bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#F59E0B", borderwidth=1, borderpad=6
+    )
+
+    fig_scatter.add_annotation(
+        x=0.02, y=0.02, xref="paper", yref="paper",
+        text=f"📉 ROL SECUNDARIO<br>(- {eje_y} / - {eje_x})",
+        showarrow=False, align="left",
+        font=dict(size=12, color="#EF4444"),
+        bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#EF4444", borderwidth=1, borderpad=6
+    )
 
     fig_scatter.update_layout(
         template="plotly_dark",
-        height=680,
+        height=700,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='#1E293B',
-        font=dict(color="#F8FAFC")
+        plot_bgcolor='#0F172A',
+        font=dict(color="#F8FAFC"),
+        coloraxis_showscale=False
     )
 
     st.plotly_chart(fig_scatter, use_container_width=True)
