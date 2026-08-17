@@ -1,5 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 import os
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -12,49 +13,60 @@ st.set_page_config(
     page_icon="🏀"
 )
 
-# 2. Inyección de CSS para Identidad Visual Avanzada
+# 2. Inyección CSS estilo Cyber-Dark Glassmorphism
 st.markdown("""
 <style>
-    /* Estilo general del Dashboard */
+    /* Fondo principal */
     .stApp {
-        background-color: #0F172A;
-        color: #F8FAFC;
+        background: linear-gradient(135deg, #0B0F19 0%, #111827 100%);
+        color: #F3F4F6;
+        font-family: 'Inter', system-ui, sans-serif;
     }
     
-    /* Encabezados y títulos */
-    h1, h2, h3 {
-        font-family: 'Inter', sans-serif;
-        font-weight: 700 !important;
-        letter-spacing: -0.5px;
+    /* Headers con estilo Neón */
+    h1 {
+        font-size: 2.2rem !important;
+        font-weight: 800 !important;
+        background: linear-gradient(90deg, #38BDF8 0%, #818CF8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.2rem !important;
     }
     
-    /* Contenedores y Tarjetas KPI */
+    /* Tarjetas KPI de alto contraste */
     div[data-testid="stMetric"] {
-        background-color: #1E293B;
-        border: 1px solid #334155;
-        border-radius: 12px;
-        padding: 12px 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        background: rgba(31, 41, 55, 0.6);
+        border: 1px solid rgba(75, 85, 99, 0.4);
+        backdrop-filter: blur(12px);
+        border-radius: 14px;
+        padding: 14px 18px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        border-color: #38BDF8;
     }
     
-    /* Personalización de Pestañas (Tabs) */
+    /* Pestañas de navegación */
     button[data-baseweb="tab"] {
         font-size: 15px !important;
-        font-weight: 600 !important;
-        color: #94A3B8 !important;
-        padding: 10px 20px !important;
+        font-weight: 700 !important;
+        color: #9CA3AF !important;
+        padding: 12px 24px !important;
+        border-radius: 8px 8px 0 0 !important;
     }
     button[aria-selected="true"] {
         color: #38BDF8 !important;
-        border-bottom-color: #38BDF8 !important;
+        background: rgba(56, 189, 248, 0.1) !important;
+        border-bottom: 3px solid #38BDF8 !important;
     }
-    
-    /* Ajuste de imágenes e insignias */
-    .player-headshot {
-        border-radius: 16px;
-        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-        border: 2px solid #334155;
-        padding: 8px;
+
+    /* Tablas de Streamlit */
+    .stDataFrame {
+        border: 1px solid #374151;
+        border-radius: 12px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -62,23 +74,53 @@ st.markdown("""
 CARPETA_L2 = "L2_fantasy"
 CATEGORIAS = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
 
-# Encabezado principal
+# Configuración centralizada de columnas y tooltips explicativos
+COLUMN_CONFIG = {
+    "RANK": st.column_config.NumberColumn("Rank", help="Posición en el ranking según Z_CUSTOM", format="%d"),
+    "PLAYER_NAME": st.column_config.TextColumn("Jugador", help="Nombre del jugador NBA"),
+    "TEAM_ABBREVIATION": st.column_config.TextColumn("Equipo", help="Abreviatura del equipo NBA"),
+    "GP": st.column_config.NumberColumn("PJ", help="Partidos Jugados (Games Played)", format="%d"),
+    "MIN": st.column_config.NumberColumn("MIN", help="Minutos promedio disputados por partido", format="%.1f"),
+    "Z_CUSTOM": st.column_config.NumberColumn("Z-Custom", help="Valor analítico recalculado aplicando la estrategia Punt", format="%.2f"),
+    "Z_TOTAL": st.column_config.NumberColumn("Z-Total", help="Valor base total considerando las 9 categorías", format="%.2f"),
+    "NET_IMPACT": st.column_config.NumberColumn("Net Impact", help="Impacto Neto de Eficiencia y Volumen Fantasy", format="%.2f"),
+    "TS_PCT": st.column_config.NumberColumn("TS%", help="True Shooting % (Eficiencia de tiro considerando 2P, 3P y TL)", format="%.3f"),
+    "AST_TOV": st.column_config.NumberColumn("AST/TO", help="Ratio de Asistencias por Pérdida de balón", format="%.2f"),
+    "STOCKS": st.column_config.NumberColumn("STOCKS", help="Métrica defensiva: Robos (STL) + Tapones (BLK)", format="%.1f"),
+    "USG_EST": st.column_config.NumberColumn("USG%", help="Estimación de Porcentaje de Uso Ofensivo por partido", format="%.1f%%"),
+    "PTS": st.column_config.NumberColumn("PTS", help="Puntos promedio por partido", format="%.1f"),
+    "REB": st.column_config.NumberColumn("REB", help="Rebotes totales promedio por partido", format="%.1f"),
+    "AST": st.column_config.NumberColumn("AST", help="Asistencias promedio por partido", format="%.1f"),
+    "STL": st.column_config.NumberColumn("STL", help="Robos de balón promedio por partido", format="%.1f"),
+    "BLK": st.column_config.NumberColumn("BLK", help="Tapones promedio por partido", format="%.1f"),
+    "FG3M": st.column_config.NumberColumn("3PM", help="Triples anotados promedio por partido", format="%.1f"),
+    "FG_PCT": st.column_config.NumberColumn("FG%", help="Porcentaje de tiro de campo", format="%.3f"),
+    "FT_PCT": st.column_config.NumberColumn("FT%", help="Porcentaje de tiros libres", format="%.3f"),
+    "TOV": st.column_config.NumberColumn("TOV", help="Pérdidas de balón por partido", format="%.1f"),
+}
+
+for cat in CATEGORIAS:
+    COLUMN_CONFIG[f"Z_{cat}"] = st.column_config.NumberColumn(
+        f"Z_{cat}", help=f"Desviación estándar Z-Score en {cat}", format="%.2f"
+    )
+
+# Header
 col_head1, col_head2 = st.columns([0.82, 0.18])
 with col_head1:
     st.title("🏀 NBA Fantasy Analytics Pro")
-    st.caption("Plataforma analítica con métricas Z-Score ponderadas por volumen e inteligencia táctica.")
+    st.caption("Plataforma con métricas avanzadas (TS%, Net Impact, Stocks) y gráficos interactivos con caras de jugadores.")
 
 with col_head2:
     with st.popover("ℹ️ Glosario de Métricas"):
         st.markdown("""
-        **Guía Rápida:**
-        * **Z-Score:** Desviaciones estándar sobre la media (`+1.0` = Top Elite).
-        * **Z_TOTAL:** Valor base considerando las 9 categorías.
-        * **Z_CUSTOM:** Valor recalculado tras aplicar la estrategia *Punt*.
-        * **Scatter Plot:** Cuadrantes para identificar chollos y jugadores de alto impacto.
+        **Nuevas Líneas Estadísticas Avanzadas:**
+        * **TS% (True Shooting):** `PTS / (2 * (FGA + 0.44 * FTA))`
+        * **AST/TO:** Ratio de Pases/Pérdidas. Un valor > 2.5 es elite.
+        * **STOCKS:** Suma directa de Robos + Tapones por partido.
+        * **NET_IMPACT:** Evaluación de impacto global ajustada por eficiencia de tiro y minutos.
         """)
 
-# Carga de datos
+# Carga de datasets
 archivos_l2 = [f for f in os.listdir(CARPETA_L2) if f.startswith("L2_") and f.endswith(".csv")] if os.path.exists(CARPETA_L2) else []
 
 if not archivos_l2:
@@ -87,7 +129,7 @@ if not archivos_l2:
 
 temporadas = sorted([f.replace("L2_", "").replace(".csv", "") for f in archivos_l2], reverse=True)
 
-# Sidebar - Panel de control
+# Sidebar
 st.sidebar.header("⚙️ Panel de Control")
 temporada_sel = st.sidebar.selectbox("Temporada", temporadas, index=0)
 
@@ -101,11 +143,21 @@ punts_sel = st.sidebar.multiselect(
 top_n = st.sidebar.slider("Jugadores a mostrar", min_value=10, max_value=250, value=50)
 filtro_busqueda = st.sidebar.text_input("🔍 Buscar Jugador o Equipo:", "")
 
-# Procesamiento del dataset
+# Carga y cálculo dinámico de Métricas Avanzadas
 df = pd.read_csv(os.path.join(CARPETA_L2, f"L2_{temporada_sel}.csv"))
 
+# Recálculo de Z_CUSTOM
 cols_z_activas = [f"Z_{cat}" for cat in CATEGORIAS if cat not in punts_sel]
 df['Z_CUSTOM'] = df[cols_z_activas].sum(axis=1)
+
+# Añadir métricas avanzadas si no vienen en la capa Silver
+df['TS_PCT'] = df['PTS'] / (2 * (df['FGA'] + 0.44 * df['FTA']).replace(0, np.nan))
+df['TS_PCT'] = df['TS_PCT'].fillna(0)
+df['AST_TOV'] = (df['AST'] / df['TOV'].replace(0, np.nan)).fillna(df['AST'])
+df['STOCKS'] = df['STL'] + df['BLK']
+df['USG_EST'] = ((df['FGA'] + 0.44 * df['FTA'] + df['TOV']) / df['MIN'].replace(0, np.nan) * 100).fillna(0)
+df['NET_IMPACT'] = df['Z_CUSTOM'] * (df['TS_PCT'] / 0.55)
+
 df_ranking = df.sort_values(by='Z_CUSTOM', ascending=False).reset_index(drop=True)
 df_ranking['RANK'] = df_ranking.index + 1
 
@@ -117,20 +169,20 @@ if filtro_busqueda:
 
 COLS_FULL = [
     'RANK', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GP', 'MIN',
-    'Z_CUSTOM', 'Z_TOTAL', 
+    'Z_CUSTOM', 'Z_TOTAL', 'NET_IMPACT', 'TS_PCT', 'AST_TOV', 'STOCKS', 'USG_EST',
     'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 
     'FG_PCT', 'FGA', 'FT_PCT', 'FTA', 'TOV'
 ]
 
-# Estructura de Pestañas
+# Tabs
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Leaderboard & Exportación", 
-    "👤 Perfil Individual", 
+    "👤 Perfil Individual Pro", 
     "⚔️ Comparador Multi-Jugador (2-5)", 
-    "🎯 Matriz Scatter Plot (Cuadrantes)"
+    "🎯 Scatter Plot con Fotos NBA"
 ])
 
-# TAB 1: RANKING Y EXPORTACIÓN
+# TAB 1: LEADERBOARD
 with tab1:
     st.subheader(f"Leaderboard General — Temporada {temporada_sel.replace('_', '-')}")
     
@@ -142,29 +194,20 @@ with tab1:
         df_display, 
         use_container_width=True, 
         hide_index=True,
-        column_config={
-            "PLAYER_NAME": "Jugador",
-            "TEAM_ABBREVIATION": "Equipo",
-            "GP": "PJ",
-            "MIN": "MIN",
-            "Z_CUSTOM": st.column_config.NumberColumn("Z-Custom", format="%.2f"),
-            "Z_TOTAL": st.column_config.NumberColumn("Z-Total", format="%.2f"),
-            "FG_PCT": st.column_config.NumberColumn("FG%", format="%.3f"),
-            "FT_PCT": st.column_config.NumberColumn("FT%", format="%.3f"),
-        }
+        column_config=COLUMN_CONFIG
     )
     
     csv_data = df_display.to_csv(index=False, encoding='utf-8-sig')
     st.download_button(
-        label="📥 Descargar Dataset Filtrado (CSV)",
+        label="📥 Descargar Dataset Procesado (CSV)",
         data=csv_data,
         file_name=f"ranking_fantasy_{temporada_sel}.csv",
         mime="text/csv"
     )
 
-# TAB 2: PERFIL INDIVIDUAL MEJORADO
+# TAB 2: PERFIL INDIVIDUAL PRO
 with tab2:
-    st.subheader("Ficha de Rendimiento Individual")
+    st.subheader("Ficha de Rendimiento Avanzado")
     col_sel, _ = st.columns([0.4, 0.6])
     with col_sel:
         jugador_sel = st.selectbox("Selecciona un jugador:", df_ranking['PLAYER_NAME'].tolist())
@@ -180,16 +223,16 @@ with tab2:
     with col_metrics:
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Posición Ranking", f"#{p_data['RANK']}")
-        m2.metric("Z-Custom (Estrategia)", f"{p_data['Z_CUSTOM']:.2f}")
-        m3.metric("Z-Total Base", f"{p_data['Z_TOTAL']:.2f}")
-        m4.metric("Puntos/Partido", f"{p_data['PTS']:.1f}")
+        m2.metric("Z-Custom", f"{p_data['Z_CUSTOM']:.2f}")
+        m3.metric("True Shooting %", f"{p_data['TS_PCT']*100:.1f}%")
+        m4.metric("Net Impact", f"{p_data['NET_IMPACT']:.2f}")
 
         st.write("")
         m5, m6, m7, m8 = st.columns(4)
-        m5.metric("Rebotes", f"{p_data['REB']:.1f}")
-        m6.metric("Asistencias", f"{p_data['AST']:.1f}")
-        m7.metric("Robos", f"{p_data['STL']:.1f}")
-        m8.metric("Tapones", f"{p_data['BLK']:.1f}")
+        m5.metric("Puntos/Partido", f"{p_data['PTS']:.1f}")
+        m6.metric("Rebotes", f"{p_data['REB']:.1f}")
+        m7.metric("Asistencias", f"{p_data['AST']:.1f}")
+        m8.metric("STOCKS (Robos+Tapones)", f"{p_data['STOCKS']:.1f}")
 
     st.divider()
 
@@ -237,7 +280,7 @@ with tab2:
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
-# TAB 3: COMPARADOR MULTI-JUGADOR (2 A 5)
+# TAB 3: COMPARADOR MULTI-JUGADOR
 with tab3:
     st.subheader("Comparador Táctico Multi-Jugador")
     
@@ -250,7 +293,7 @@ with tab3:
     )
 
     if len(jugadores_sel) < 2:
-        st.warning("⚠️ Selecciona al menos 2 jugadores para generar la comparación.")
+        st.warning("⚠️ Selecciona al menos 2 jugadores para comparar.")
     else:
         colores = ['#38BDF8', '#EF4444', '#10B981', '#F59E0B', '#A855F7']
         fig_comp = go.Figure()
@@ -274,14 +317,14 @@ with tab3:
                 bgcolor='#1E293B',
                 radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')
             ),
-            title=f"Superposición de Huella Radar ({len(jugadores_sel)} Jugadores)",
+            title=f"Superposición Radar ({len(jugadores_sel)} Jugadores)",
             height=500,
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
         )
         st.plotly_chart(fig_comp, use_container_width=True)
 
-        st.markdown("### 📋 Tabla Comparativa Completa")
+        st.markdown("### 📋 Tabla Comparativa con Estadísticas Avanzadas")
         cols_comp = COLS_FULL + [f"Z_{cat}" for cat in CATEGORIAS]
         cols_comp = list(dict.fromkeys(cols_comp))
         
@@ -289,53 +332,83 @@ with tab3:
         cols_float = df_comp_table.select_dtypes(include=['float64']).columns
         df_comp_table[cols_float] = df_comp_table[cols_float].round(2)
         
-        st.dataframe(df_comp_table, use_container_width=True, hide_index=True)
+        st.dataframe(
+            df_comp_table, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config=COLUMN_CONFIG
+        )
 
-# TAB 4: SCATTER PLOT INTERACTIVO (CUADRANTES DE VALOR)
+# TAB 4: SCATTER PLOT CON IMÁGENES OFICIALES DE JUGADORES
 with tab4:
-    st.subheader("🎯 Matriz de Correlación y Detección de Oportunidades")
-    st.caption("Usa los cuadrantes para descubrir jugadores con alto valor analítico en relación a su volumen de juego o puntuación.")
+    st.subheader("🎯 Matriz Scatter Plot con Headshots Oficiales NBA")
+    st.caption("Visualiza las fotos de los jugadores superpuestas directamente en las coordenadas estadísticas.")
 
-    col_eje_x, col_eje_y, col_size = st.columns(3)
+    col_eje_x, col_eje_y, col_top = st.columns(3)
     
-    opciones_metricas = ['MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'Z_CUSTOM', 'Z_TOTAL', 'GP']
+    opciones_metricas = ['MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'STOCKS', 'TS_PCT', 'NET_IMPACT', 'Z_CUSTOM', 'Z_TOTAL']
     
     with col_eje_x:
-        eje_x = st.selectbox("Eje X (Horizontal):", opciones_metricas, index=0) # Por defecto MIN
+        eje_x = st.selectbox("Eje X (Horizontal):", opciones_metricas, index=0)
     with col_eje_y:
-        eje_y = st.selectbox("Eje Y (Vertical):", opciones_metricas, index=7) # Por defecto Z_CUSTOM
-    with col_size:
-        eje_size = st.selectbox("Tamaño de Burbuja:", opciones_metricas, index=1) # Por defecto PTS
+        eje_y = st.selectbox("Eje Y (Vertical):", opciones_metricas, index=9)
+    with col_top:
+        num_fotos = st.slider("Número de fotos a renderizar:", min_value=10, max_value=60, value=30)
 
-    df_scatter = df_ranking.head(top_n).copy()
+    df_scatter = df_ranking.head(num_fotos).copy()
 
+    # Base Scatter
     fig_scatter = px.scatter(
         df_scatter,
         x=eje_x,
         y=eje_y,
-        size=eje_size,
         color='Z_CUSTOM',
         hover_name='PLAYER_NAME',
-        hover_data=['TEAM_ABBREVIATION', 'RANK', 'PTS', 'REB', 'AST'],
+        hover_data=['TEAM_ABBREVIATION', 'RANK', 'PTS', 'TS_PCT', 'NET_IMPACT'],
         color_continuous_scale='Viridis',
-        title=f"Análisis de Cuadrantes: {eje_x} vs {eje_y} (Tamaño = {eje_size})"
+        title=f"Scatter Plot con Fotos: {eje_x} vs {eje_y}"
     )
 
-    # Líneas medias para dividir los 4 cuadrantes
-    media_x = df_scatter[eje_x].mean()
-    media_y = df_scatter[eje_y].mean()
+    # Calcular la escala proporcional de las fotos según el rango de los ejes
+    x_min, x_max = df_scatter[eje_x].min(), df_scatter[eje_x].max()
+    y_min, y_max = df_scatter[eje_y].min(), df_scatter[eje_y].max()
+    
+    x_range = (x_max - x_min) if (x_max - x_min) != 0 else 1
+    y_range = (y_max - y_min) if (y_max - y_min) != 0 else 1
 
-    fig_scatter.add_vline(x=media_x, line_dash="dash", line_color="#94A3B8", opacity=0.6)
-    fig_scatter.add_hline(y=media_y, line_dash="dash", line_color="#94A3B8", opacity=0.6)
+    size_x = x_range * 0.075
+    size_y = y_range * 0.075
+
+    # Superponer fotos CDN de cada jugador
+    for _, row in df_scatter.iterrows():
+        p_id = int(row['PLAYER_ID'])
+        fig_scatter.add_layout_image(
+            dict(
+                source=f"https://cdn.nba.com/headshots/nba/latest/260x190/{p_id}.png",
+                xref="x",
+                yref="y",
+                x=row[eje_x],
+                y=row[eje_y],
+                sizex=size_x,
+                sizey=size_y,
+                xanchor="center",
+                yanchor="middle",
+                sizing="contain",
+                opacity=0.9,
+                layer="above"
+            )
+        )
+
+    # Líneas medias de cuadrantes
+    fig_scatter.add_vline(x=df_scatter[eje_x].mean(), line_dash="dash", line_color="#94A3B8", opacity=0.5)
+    fig_scatter.add_hline(y=df_scatter[eje_y].mean(), line_dash="dash", line_color="#94A3B8", opacity=0.5)
 
     fig_scatter.update_layout(
         template="plotly_dark",
-        height=600,
+        height=680,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='#1E293B',
         font=dict(color="#F8FAFC")
     )
 
     st.plotly_chart(fig_scatter, use_container_width=True)
-
-    st.info(f"💡 **Tip Analítico:** Los jugadores situados en el **cuadrante superior izquierdo** (por encima de la media en {eje_y} con menor valor en {eje_x}) son perfiles extremadamente eficientes y objetivos primarios para fichajes/traspasos.")
