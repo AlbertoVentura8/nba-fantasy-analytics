@@ -10,8 +10,9 @@ __pycache__/
 *.pyc
 
 # Capas de datos (se regeneran con el pipeline)
-L1_raw/
+L1_fantasy/
 L2_fantasy/
+*.csv
 
 # Editor
 .vscode/
