@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 NBA Fantasy Analytics Pro — Dashboard L3 & Intelligence Hub
-Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados y consulta local instantánea.
+Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados, game logs y palmarés oficial.
 """
 
 import os
@@ -192,22 +192,37 @@ def obtener_premios_oficiales_nba(player_id: int) -> List[Dict[str, str]]:
     return [{"texto": row['TITULO'], "anos": str(row['ANOS'])} for _, row in j_p.iterrows()]
 
 @st.cache_data(ttl=3600)
-def obtener_gamelog_jugador(player_id: int, temporada_nba: str) -> pd.DataFrame:
-    """Carga los partidos del jugador desde el dataset local L2_gamelogs_<temporada>.csv."""
+def cargar_gamelogs_totales_temporada(temporada_nba: str) -> pd.DataFrame:
+    """Carga y sanitiza todos los tipos de datos del Game Log para consultas inmediatas y sin errores."""
     path_gl = os.path.join(CARPETA_L2, f"L2_gamelogs_{temporada_nba}.csv")
     if not os.path.exists(path_gl):
         return pd.DataFrame()
         
     df_gl = pd.read_csv(path_gl)
-    return df_gl[df_gl['PLAYER_ID'] == player_id].copy()
+    if df_gl.empty:
+        return df_gl
+        
+    # Conversión estricta a numérico para evitar comparaciones erróneas de texto
+    cols_num = ['MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'TOV', 'FGA', 'FGM', 'FTA', 'FTM', 'FG_PCT', 'FT_PCT']
+    for col in cols_num:
+        if col in df_gl.columns:
+            df_gl[col] = pd.to_numeric(df_gl[col], errors='coerce').fillna(0.0)
+            
+    # Cálculo de métricas derivadas en cada partido individual
+    df_gl['STOCKS'] = df_gl['STL'] + df_gl['BLK']
+    df_gl['TS_PCT'] = (df_gl['PTS'] / (2 * (df_gl['FGA'] + 0.44 * df_gl['FTA']).replace(0, np.nan))).fillna(0.0)
+    df_gl['AST_TOV'] = (df_gl['AST'] / df_gl['TOV'].replace(0, np.nan)).fillna(df_gl['AST'])
+    
+    return df_gl
 
 @st.cache_data(ttl=3600)
-def cargar_gamelogs_totales_temporada(temporada_nba: str) -> pd.DataFrame:
-    """Carga el Game Log completo de todos los jugadores para la temporada seleccionada."""
-    path_gl = os.path.join(CARPETA_L2, f"L2_gamelogs_{temporada_nba}.csv")
-    if not os.path.exists(path_gl):
+def obtener_gamelog_jugador(player_id: int, temporada_nba: str) -> pd.DataFrame:
+    """Filtra el Game Log de un jugador concreto desde la base de datos precargada."""
+    df_all = cargar_gamelogs_totales_temporada(temporada_nba)
+    if df_all.empty or 'PLAYER_ID' not in df_all.columns:
         return pd.DataFrame()
-    return pd.read_csv(path_gl)
+        
+    return df_all[df_all['PLAYER_ID'] == player_id].copy()
 
 @st.cache_data(ttl=3600)
 def cargar_dataset_l2(ruta_archivo: str) -> pd.DataFrame:
@@ -276,6 +291,7 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
     return badges
 
 def parsear_consulta_natural(texto_consulta: str) -> str:
+    """Parsea consultas en español convirtiendo adecuadamente expresiones de minutos y estadísticas."""
     text = texto_consulta.lower()
     
     text = re.sub(r'(<|<=|>|>=|==)(\d+)', r'\1 \2', text)
@@ -285,8 +301,9 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
     is_allstar = bool(re.search(r'\b(all\s*stars?|allstar)\b', text))
     text = re.sub(r'\b(mvps?|all\s*stars?|allstar)\b', ' ', text)
 
-    text = re.sub(r'partidos?\s+de\s*(<|<=|>|>=|==)?\s*(\d+)\s*(minutos|min|mins)', r'MIN \1 \2', text)
-    text = re.sub(r'(<|<=|>|>=|==)?\s*(\d+)\s*(minutos|min|mins)\s*jugados?', r'MIN \1 \2', text)
+    # Captura explícita de minutos para asegurar la columna MIN
+    text = re.sub(r'(<|<=|>|>=|==)?\s*(\d+(?:\.\d+)?)\s*(minutos|min|mins|tiempo)', r'MIN \1 \2', text)
+    text = re.sub(r'(minutos|min|mins|tiempo)\s*(<|<=|>|>=|==)?\s*(\d+(?:\.\d+)?)', r'MIN \1 \2', text)
 
     operadores_map = [
         (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a|por encima de', '>='),
@@ -299,7 +316,6 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
         text = re.sub(pat, op, text)
 
     metricas_map = [
-        (r'\b(minutos|min|mins|tiempo)\b', 'MIN'),
         (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
         (r'\b(rebotes|reb|capturas)\b', 'REB'),
         (r'\b(asistencias|ast|pases)\b', 'AST'),
@@ -307,6 +323,8 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
         (r'\b(tapones|bloqueos|blk)\b', 'BLK'),
         (r'\b(triples|3pm|fg3m)\b', 'FG3M'),
         (r'\b(p[eé]rdidas|perdidas|tov|turnovers)\b', 'TOV'),
+        (r'\b(ts%|true shooting|eficiencia)\b', 'TS_PCT'),
+        (r'\b(stocks)\b', 'STOCKS'),
         (r'\b(net rating|net_rtg)\b', 'NET_RTG'),
         (r'\b(off rating|off_rtg)\b', 'OFF_RTG'),
         (r'\b(def rating|def_rtg)\b', 'DEF_RTG'),
@@ -324,17 +342,17 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
 
     text_clean = re.sub(r'\b(partidos?|jugados?|con|que|tengan|promedien|por|de|media|en|promedio|al|menos|como|m[ií]nimo|y|además|ademas)\b', ' ', text)
 
-    pattern_a = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s*(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)'
+    pattern_a = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|TS_PCT|STOCKS|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s*(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)'
     for m, op, val in re.findall(pattern_a, text_clean):
         condiciones.append(f"{m} {op} {val}")
         text_clean = re.sub(rf'\b{m}\s*{re.escape(op)}\s*{val}', ' ', text_clean)
 
-    pattern_b = r'(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)\s*\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\b'
+    pattern_b = r'(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)\s*\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|TS_PCT|STOCKS|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\b'
     for op, val, m in re.findall(pattern_b, text_clean):
         condiciones.append(f"{m} {op} {val}")
         text_clean = re.sub(rf'{re.escape(op)}\s*{val}\s*\b{m}\b', ' ', text_clean)
 
-    pattern_c = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s+(\d+(?:\.\d+)?)'
+    pattern_c = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|TS_PCT|STOCKS|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s+(\d+(?:\.\d+)?)'
     for m, val in re.findall(pattern_c, text_clean):
         condiciones.append(f"{m} >= {val}")
 
@@ -511,7 +529,7 @@ RANK #{p_data['RANK']}
             df_gl = obtener_gamelog_jugador(player_id, temporada_sel)
 
             if df_gl.empty:
-                st.warning("⚠️ No se encontraron Game Logs en el repositorio para este jugador.")
+                st.warning("⚠️ No se encontraron Game Logs locales generados para este jugador.")
             else:
                 c1_f, c2_f, c3_f, c4_f = st.columns(4)
                 
@@ -551,8 +569,10 @@ RANK #{p_data['RANK']}
                 st.success(f"🎯 **{len(df_gl_filtrado)} de {len(df_gl)} partidos** ({pct_cumplimiento:.1f}% del total) cumplen los criterios especificados.")
 
                 cols_gl_vista = ['GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
+                cols_gl_existentes = [c for c in cols_gl_vista if c in df_gl_filtrado.columns]
+                
                 st.dataframe(
-                    df_gl_filtrado[cols_gl_vista], 
+                    df_gl_filtrado[cols_gl_existentes], 
                     width="stretch", 
                     hide_index=True,
                     column_config={
@@ -729,15 +749,21 @@ with tab5:
                 df_all_games = cargar_gamelogs_totales_temporada(temporada_sel)
                 
                 if df_all_games.empty:
-                    st.warning(f"No hay Game Logs locales generados para la temporada {temporada_sel}.")
+                    st.warning(f"⚠️ No hay Game Logs locales generados para la temporada {temporada_sel}.")
                 else:
-                    # Unir banderas de estatus desde el ranking activo
-                    df_flags = df_ranking[['PLAYER_NAME', 'IS_MVP', 'IS_ALLSTAR']].drop_duplicates()
-                    df_all_games = df_all_games.merge(df_flags, on='PLAYER_NAME', how='left')
-                    df_all_games['IS_MVP'] = df_all_games['IS_MVP'].fillna(False)
-                    df_all_games['IS_ALLSTAR'] = df_all_games['IS_ALLSTAR'].fillna(False)
+                    # Enriquecer el Game Log con las banderas de temporada (Z_CUSTOM, IS_MVP, IS_ALLSTAR, OFF_RTG)
+                    cols_season = ['PLAYER_NAME', 'Z_CUSTOM', 'Z_TOTAL', 'OFF_RTG', 'DEF_RTG', 'NET_RTG', 'IS_MVP', 'IS_ALLSTAR']
+                    cols_existentes_season = [c for c in cols_season if c in df_ranking.columns]
+                    
+                    df_flags = df_ranking[cols_existentes_season].drop_duplicates(subset=['PLAYER_NAME'])
+                    df_search = df_all_games.merge(df_flags, on='PLAYER_NAME', how='left')
+                    
+                    if 'IS_MVP' in df_search.columns:
+                        df_search['IS_MVP'] = df_search['IS_MVP'].fillna(False)
+                    if 'IS_ALLSTAR' in df_search.columns:
+                        df_search['IS_ALLSTAR'] = df_search['IS_ALLSTAR'].fillna(False)
 
-                    df_partidos_filtrados = df_all_games.query(sintaxis_query).sort_values(by='PTS', ascending=False).reset_index(drop=True)
+                    df_partidos_filtrados = df_search.query(sintaxis_query).sort_values(by='PTS', ascending=False).reset_index(drop=True)
                     
                     n_partidos = len(df_partidos_filtrados)
                     jugadores_unicos = df_partidos_filtrados['PLAYER_NAME'].nunique() if n_partidos > 0 else 0
