@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 NBA Fantasy Analytics Pro — Dashboard L3 & Intelligence Hub
-Plataforma analítica con métricas avanzadas, palmarés oficial, asistente NL y proyección histórica.
+Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados, game logs y palmarés oficial.
 """
 
 import os
@@ -92,6 +92,7 @@ st.markdown("""
         background: rgba(30, 41, 59, 0.8) !important;
     }
     
+    /* Hero Card & Glassmorphism */
     .player-hero-card {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -101,34 +102,52 @@ st.markdown("""
         margin-bottom: 24px;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     }
-    
+
+    .badge-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 4px;
+    }
+
     .badge-chip {
-        display: inline-block;
-        background: rgba(56, 189, 248, 0.12);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        color: #38BDF8;
-        padding: 5px 12px;
-        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 14px;
+        border-radius: 20px;
         font-size: 12px;
         font-weight: 600;
-        margin-right: 6px;
-        margin-bottom: 6px;
+        line-height: 1;
+        white-space: nowrap;
+        backdrop-filter: blur(8px);
+        transition: all 0.2s ease;
     }
-    .badge-chip-gold {
-        background: rgba(245, 158, 11, 0.15);
-        border: 1px solid rgba(245, 158, 11, 0.5);
-        color: #FBBF24;
-    }
-    .badge-chip-green {
-        background: rgba(16, 185, 129, 0.15);
-        border: 1px solid rgba(16, 185, 129, 0.5);
-        color: #34D399;
-    }
-    .badge-chip-official {
-        background: linear-gradient(135deg, rgba(217, 119, 6, 0.2) 0%, rgba(180, 83, 9, 0.3) 100%);
-        border: 1px solid #F59E0B;
+
+    .badge-official {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.35);
         color: #FCD34D;
-        font-weight: 700;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.08);
+    }
+
+    .badge-chip-gold {
+        background: rgba(234, 179, 8, 0.15);
+        border: 1px solid rgba(234, 179, 8, 0.4);
+        color: #FDE047;
+    }
+
+    .badge-chip-blue {
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        color: #38BDF8;
+    }
+
+    .badge-chip-green {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        color: #34D399;
     }
 
     button[data-baseweb="tab"] { font-size: 15px !important; font-weight: 700 !important; color: #64748B !important; }
@@ -151,7 +170,7 @@ def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) ->
     df['STOCKS'] = df['STL'] + df['BLK']
     df['USG_EST'] = ((df['FGA'] + 0.44 * df['FTA'] + df['TOV']) / df['MIN'].replace(0, np.nan) * 100).fillna(0)
     
-    # Rating Ofensivo, Defensivo y Neto
+    # Ratings
     df['OFF_RTG'] = (108 + (df['Z_PTS'] + df['Z_AST'] + df['Z_FG3M'] + df['Z_FG_PCT'] + df['Z_FT_PCT']) * 3.2).round(1)
     df['DEF_RTG'] = (112 - (df['Z_REB'] + df['Z_STL'] + df['Z_BLK'] - df['Z_TOV']) * 2.8).round(1)
     df['NET_RTG'] = (df['OFF_RTG'] - df['DEF_RTG']).round(1)
@@ -224,27 +243,33 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
     if p_data['Z_CUSTOM'] >= 6.0:
         badges.append({"texto": "⚡ MVP Fantasy Candidate", "clase": "badge-chip-gold"})
     elif p_data['Z_CUSTOM'] >= 3.5:
-        badges.append({"texto": "⭐ Fantasy All-Star", "clase": "badge-chip"})
+        badges.append({"texto": "⭐ Fantasy All-Star", "clase": "badge-chip-blue"})
         
     if p_data['PTS'] >= 25.0:
         badges.append({"texto": "🔥 25+ PTS/G", "clase": "badge-chip-gold"})
     if p_data['AST'] >= 8.0:
-        badges.append({"texto": "🧠 8+ AST/G", "clase": "badge-chip"})
+        badges.append({"texto": "🧠 8+ AST/G", "clase": "badge-chip-blue"})
     if p_data['REB'] >= 10.0:
-        badges.append({"texto": "🧺 10+ REB/G", "clase": "badge-chip"})
+        badges.append({"texto": "🧺 10+ REB/G", "clase": "badge-chip-blue"})
     if p_data['STOCKS'] >= 2.5:
         badges.append({"texto": "🔒 2.5+ STOCKS/G", "clase": "badge-chip-green"})
     if p_data['FG3M'] >= 3.0:
-        badges.append({"texto": "🎯 3+ 3PM/G", "clase": "badge-chip"})
+        badges.append({"texto": "🎯 3+ 3PM/G", "clase": "badge-chip-blue"})
     if p_data['TS_PCT'] >= 0.62:
         badges.append({"texto": "⚡ 62%+ TS", "clase": "badge-chip-gold"})
         
     return badges
 
 def parsear_consulta_natural(texto_consulta: str) -> str:
-    """Parsea frases coloquiales en español a expresiones de Pandas (.query)."""
+    """Parsea frases coloquiales en español a sintaxis Pandas (.query)."""
     text = texto_consulta.lower()
     
+    text = re.sub(r'(<|<=|>|>=|==)(\d+)', r'\1 \2', text)
+    text = re.sub(r'(\d+)(<|<=|>|>=|==)', r'\1 \2', text)
+
+    text = re.sub(r'partidos?\s+de\s+<', 'MIN <', text)
+    text = re.sub(r'partidos?\s+de\s+>', 'MIN >', text)
+
     relleno = [
         r'\bdime\b', r'\bmu[eé]strame\b', r'\bbusco\b', r'\bquiero\s+ver\b',
         r'\bjugadores\b', r'\bcon\b', r'\bque\s+tengan\b', r'\bque\s+promedien\b',
@@ -255,9 +280,9 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
         text = re.sub(r, ' ', text)
         
     metricas_map = [
-        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP'),
         (r'\b(minutos|min|mins|tiempo)\b', 'MIN'),
         (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
+        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP'),
         (r'\b(rebotes|reb|capturas)\b', 'REB'),
         (r'\b(asistencias|ast|pases)\b', 'AST'),
         (r'\b(robos|stl|recuperaciones)\b', 'STL'),
@@ -273,9 +298,9 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
         text = re.sub(pat, col, text)
 
     operadores_map = [
-        (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a|> =|>=', '>='),
-        (r'm[eé]nos de|menor(?:es)? a|inferior(?:es)? a|< =|<=', '<='),
-        (r'igual a|==', '==')
+        (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a', '>='),
+        (r'm[eé]nos de|menor(?:es)? a|inferior(?:es)? a', '<='),
+        (r'igual a', '==')
     ]
     for pat, op in operadores_map:
         text = re.sub(pat, op, text)
@@ -374,7 +399,7 @@ with tab1:
         mime="text/csv"
     )
 
-# TAB 2: FICHA DE JUGADOR & HISTÓRICO CON ÁREA SUAVE
+# TAB 2: FICHA DE JUGADOR & HISTÓRICO
 with tab2:
     st.subheader("Ficha de Rendimiento, Game Log y Asistente")
     if df_ranking.empty:
@@ -391,30 +416,36 @@ with tab2:
         premios_oficiales = obtener_premios_oficiales_nba(player_id)
         insignias_fan = calcular_insignias_fantasy(p_data)
 
-        html_oficiales = "".join([f'<span class="badge-chip badge-chip-official">{p}</span>' for p in premios_oficiales])
-        html_fantasy = "".join([f'<span class="{b["clase"]}">{b["texto"]}</span>' for b in insignias_fan])
+        html_oficiales = "".join([f'<div class="badge-chip badge-official">{p}</div>' for p in premios_oficiales])
+        html_fantasy = "".join([f'<div class="badge-chip {b["clase"]}">{b["texto"]}</div>' for b in insignias_fan])
 
         st.markdown(f"""
         <div class="player-hero-card">
-            <div style="display: flex; align-items: center; gap: 24px;">
-                <img src="{img_url}" style="width: 130px; border-radius: 12px; background: #0F172A; border: 2px solid #334155;">
-                <div style="flex-grow: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin:0; font-size: 2rem; color: #F8FAFC;">{p_data['PLAYER_NAME']}</h2>
-                        <span style="background: #38BDF8; color: #0F172A; font-weight: 800; padding: 6px 14px; border-radius: 10px; font-size: 16px;">
+            <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+                <img src="{img_url}" style="width: 125px; border-radius: 16px; background: #0F172A; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.4);">
+                <div style="flex: 1; min-width: 280px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <h2 style="margin:0; font-size: 2.1rem; font-weight: 800; color: #F8FAFC; letter-spacing: -0.5px;">{p_data['PLAYER_NAME']}</h2>
+                        <span style="background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%); color: #0F172A; font-weight: 800; padding: 6px 16px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);">
                             RANK #{p_data['RANK']}
                         </span>
                     </div>
-                    <p style="margin: 4px 0 10px 0; color: #94A3B8; font-size: 15px; font-weight: 600;">
-                        {p_data['TEAM_ABBREVIATION']} | {p_data['GP']} PJ | {p_data['MIN']:.1f} MIN/G
+                    <p style="margin: 0 0 12px 0; color: #94A3B8; font-size: 14px; font-weight: 600;">
+                        <span style="color: #38BDF8;">{p_data['TEAM_ABBREVIATION']}</span> &nbsp;•&nbsp; {p_data['GP']} PJ &nbsp;•&nbsp; {p_data['MIN']:.1f} MIN/G
                     </p>
-                    <div style="margin-bottom: 6px;">
-                        <span style="font-size: 11px; color: #F59E0B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">🥇 Palmarés Oficial NBA:</span>
-                        {html_oficiales if html_oficiales else '<span class="badge-chip">Sin títulos individuales registrados</span>'}
+                    
+                    <div style="margin-bottom: 10px;">
+                        <span style="font-size: 11px; color: #F59E0B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">🥇 Palmarés Oficial NBA</span>
+                        <div class="badge-container">
+                            {html_oficiales if html_oficiales else '<div class="badge-chip badge-official">Sin premios registrados</div>'}
+                        </div>
                     </div>
-                    <div style="margin-top: 8px;">
-                        <span style="font-size: 11px; color: #38BDF8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">⚡ Hit Táctico Fantasy:</span>
-                        {html_fantasy}
+                    
+                    <div>
+                        <span style="font-size: 11px; color: #38BDF8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">⚡ Hit Táctico Fantasy</span>
+                        <div class="badge-container">
+                            {html_fantasy}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -473,7 +504,7 @@ with tab2:
 
         with p_tab2:
             st.markdown("### 🔍 Asistente de Consulta de Partidos (Game Log)")
-            st.caption("Filtra las actuaciones individuales según minutos, puntos o rivales enfrentados.")
+            st.caption("Filtra las actuaciones individuales definiendo límites máximos (<=) o mínimos (>=) para cada estadística.")
 
             df_gl = obtener_gamelog_jugador(player_id, temporada_sel)
 
@@ -481,25 +512,41 @@ with tab2:
                 st.warning("⚠️ No se pudieron obtener los datos de partidos en vivo desde la API de la NBA.")
             else:
                 c1_f, c2_f, c3_f, c4_f = st.columns(4)
+                
                 with c1_f:
-                    min_filtro = st.number_input("Minutos Mínimos (MIN >):", min_value=0, max_value=48, value=20)
+                    st.markdown("**⏱️ Minutos**")
+                    col_op1, col_val1 = st.columns([0.45, 0.55])
+                    op_min = col_op1.selectbox("Op MIN", [">=", "<="], index=0, key="op_min", label_visibility="collapsed")
+                    val_min = col_val1.number_input("MIN", min_value=0, max_value=48, value=10, key="val_min", label_visibility="collapsed")
+
                 with c2_f:
-                    pts_filtro = st.number_input("Puntos Mínimos (PTS >=):", min_value=0, max_value=70, value=20)
+                    st.markdown("**🏀 Puntos**")
+                    col_op2, col_val2 = st.columns([0.45, 0.55])
+                    op_pts = col_op2.selectbox("Op PTS", [">=", "<="], index=0, key="op_pts", label_visibility="collapsed")
+                    val_pts = col_val2.number_input("PTS", min_value=0, max_value=100, value=0, key="val_pts", label_visibility="collapsed")
+
                 with c3_f:
-                    reb_filtro = st.number_input("Rebotes Mínimos (REB >=):", min_value=0, max_value=30, value=0)
+                    st.markdown("**🧺 Rebotes**")
+                    col_op3, col_val3 = st.columns([0.45, 0.55])
+                    op_reb = col_op3.selectbox("Op REB", [">=", "<="], index=0, key="op_reb", label_visibility="collapsed")
+                    val_reb = col_val3.number_input("REB", min_value=0, max_value=40, value=0, key="val_reb", label_visibility="collapsed")
+
                 with c4_f:
-                    ast_filtro = st.number_input("Asistencias Mínimas (AST >=):", min_value=0, max_value=25, value=0)
+                    st.markdown("**🧠 Asistencias**")
+                    col_op4, col_val4 = st.columns([0.45, 0.55])
+                    op_ast = col_op4.selectbox("Op AST", [">=", "<="], index=0, key="op_ast", label_visibility="collapsed")
+                    val_ast = col_val4.number_input("AST", min_value=0, max_value=30, value=0, key="val_ast", label_visibility="collapsed")
 
                 mask_gl = (
-                    (df_gl['MIN'] >= min_filtro) &
-                    (df_gl['PTS'] >= pts_filtro) &
-                    (df_gl['REB'] >= reb_filtro) &
-                    (df_gl['AST'] >= ast_filtro)
+                    (df_gl['MIN'] >= val_min if op_min == ">=" else df_gl['MIN'] <= val_min) &
+                    (df_gl['PTS'] >= val_pts if op_pts == ">=" else df_gl['PTS'] <= val_pts) &
+                    (df_gl['REB'] >= val_reb if op_reb == ">=" else df_gl['REB'] <= val_reb) &
+                    (df_gl['AST'] >= val_ast if op_ast == ">=" else df_gl['AST'] <= val_ast)
                 )
                 df_gl_filtrado = df_gl[mask_gl].copy()
                 pct_cumplimiento = (len(df_gl_filtrado) / len(df_gl) * 100) if len(df_gl) > 0 else 0
 
-                st.success(f"🎯 **{len(df_gl_filtrado)} de {len(df_gl)} partidos** ({pct_cumplimiento:.1f}% del total) cumplen la condición especificada.")
+                st.success(f"🎯 **{len(df_gl_filtrado)} de {len(df_gl)} partidos** ({pct_cumplimiento:.1f}% del total) cumplen los criterios especificados.")
 
                 cols_gl_vista = ['GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
                 st.dataframe(
@@ -509,7 +556,7 @@ with tab2:
                     column_config={
                         "GAME_DATE": "Fecha",
                         "MATCHUP": "Partido / Rival",
-                        "WL": "Rer.",
+                        "WL": "Res.",
                         "FG_PCT": st.column_config.NumberColumn("FG%", format="%.3f"),
                         "FT_PCT": st.column_config.NumberColumn("FT%", format="%.3f"),
                     }
@@ -539,7 +586,7 @@ with tab2:
                 fig_bar.update_layout(template="plotly_dark", height=400, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-# TAB 3: COMPARADOR MULTI-JUGADOR CON MODOS DE HISTÓRICO
+# TAB 3: COMPARADOR MULTI-JUGADOR
 with tab3:
     st.subheader("Comparador Táctico Multi-Jugador")
     default_players = df_ranking['PLAYER_NAME'].head(3).tolist() if len(df_ranking) >= 3 else df_ranking['PLAYER_NAME'].tolist()
@@ -639,119 +686,178 @@ with tab4:
 
 # TAB 5: ASISTENTE NL Y QUERY BUILDER GLOBAL
 with tab5:
-    st.subheader("🤖 Asistente Analítico & Buscador de Condicionales Global")
-    st.caption(f"Consulta toda la base de datos de la temporada {temporada_sel.replace('_', '-')} introduciendo condiciones estadísticas.")
+    st.subheader("🤖 Asistente Analítico & Buscador de Actuaciones Global")
+    st.caption(f"Consulta promedios o busca partidos concretos en vivo de la temporada {temporada_sel.replace('_', '-')}.")
+
+    modo_busqueda = st.radio(
+        "Ámbito de Consulta:",
+        options=["⚡ Partidos Concretos (Game Logs de la Liga)", "📊 Promedios de Temporada"],
+        horizontal=True
+    )
 
     st.markdown("**💡 Consultas Rápidas (Atajos):**")
     q_col1, q_col2, q_col3, q_col4 = st.columns(4)
     
     preset_query = ""
-    if q_col1.button("🔥 >20 PTS, >15 MIN, >10 PJ"):
-        preset_query = "GP >= 10 and MIN >= 15 and PTS >= 20"
-    if q_col2.button("🎯 Anotadores Eficientes (>20 PTS, >55% FG%)"):
-        preset_query = "PTS >= 20 and FG_PCT >= 0.55"
-    if q_col3.button("🛡️ Especialistas Defensivos (>1.5 STL, >1.5 BLK)"):
-        preset_query = "STL >= 1.5 and BLK >= 1.5"
-    if q_col4.button("👑 Playmakers Elite (>8 AST, <2.5 TOV)"):
-        preset_query = "AST >= 8.0 and TOV <= 2.5"
+    if q_col1.button("🔥 Partidos MIN < 15 y PTS > 15"):
+        preset_query = "MIN < 15 and PTS > 15"
+    if q_col2.button("🎯 Partidos PTS >= 40 y FG% >= 0.60"):
+        preset_query = "PTS >= 40 and FG_PCT >= 0.60"
+    if q_col3.button("🛡️ Partidos STOCKS >= 6"):
+        preset_query = "STOCKS >= 6"
+    if q_col4.button("👑 Partidos AST >= 15 y TOV <= 2"):
+        preset_query = "AST >= 15 and TOV <= 2"
 
     st.markdown("---")
 
     input_usuario = st.text_input(
         "💬 Escribe tu consulta en lenguaje natural o sintaxis condicional:",
-        value=preset_query if preset_query else "partidos > 10 y minutos > 15 y puntos > 20",
-        help="Ejemplo: 'dime jugadores con mas de 10 partidos, 15 minutos y 20 puntos'"
+        value=preset_query if preset_query else "partidos de < 10 minutos jugados con puntos > 15",
+        help="Ejemplo: 'partidos de < 10 minutos con puntos > 15' o 'MIN < 10 and PTS > 15'"
     )
 
     if input_usuario:
         sintaxis_query = parsear_consulta_natural(input_usuario)
-        st.code(f"Sintaxis Pandas generada: df.query('{sintaxis_query}')", language="python")
+        st.code(f"Sintaxis Pandas generada: .query('{sintaxis_query}')", language="python")
 
         try:
-            df_asistente = calcular_metricas_avanzadas(df_raw, punts_sel)
-            df_filtrado_ast = df_asistente.query(sintaxis_query).sort_values(by='Z_CUSTOM', ascending=False).reset_index(drop=True)
-            df_filtrado_ast['RANK'] = df_filtrado_ast.index + 1
-
-            n_res = len(df_filtrado_ast)
-            pct_res = (n_res / len(df_asistente) * 100) if len(df_asistente) > 0 else 0
-
-            res1, res2, res3 = st.columns(3)
-            res1.metric("Jugadores Encontrados", f"{n_res} de {len(df_asistente)}")
-            res2.metric("% de la Liga", f"{pct_res:.1f}%")
-            res3.metric("Mejor Valor Z-Custom", f"{df_filtrado_ast.iloc[0]['Z_CUSTOM']:.2f}" if n_res > 0 else "0.0")
-
-            if n_res == 0:
-                st.warning("No se encontraron jugadores que cumplan todas las condiciones requeridas.")
-            else:
-                st.dataframe(
-                    df_filtrado_ast[COLS_FULL], 
-                    use_container_width=True, 
-                    hide_index=True, 
-                    column_config=COLUMN_CONFIG
-                )
-
-                st.markdown("---")
-                st.markdown("### 📊 Gráficas e Inspección Express del Resultado")
-                col_vis1, col_vis2 = st.columns([0.55, 0.45])
+            if modo_busqueda == "⚡ Partidos Concretos (Game Logs de la Liga)":
+                st.info("🔎 Escaneando historial de partidos de los jugadores activos de la temporada...")
                 
-                with col_vis1:
-                    st.markdown("#### 🎯 Comparativa de Búsqueda")
-                    eje_ast_y = st.selectbox(
-                        "Métrica a comparar en el gráfico:", 
-                        options=['Z_CUSTOM', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'TS_PCT', 'NET_RTG'], 
-                        key="ast_y_axis"
-                    )
+                top_players_gamelog = df_ranking.head(60)
+                partidos_acumulados = []
+                
+                for _, p_row in top_players_gamelog.iterrows():
+                    p_id = int(p_row['PLAYER_ID'])
+                    p_name = p_row['PLAYER_NAME']
+                    p_team = p_row['TEAM_ABBREVIATION']
                     
-                    fig_ast_bar = px.bar(
-                        df_filtrado_ast.head(15),
-                        x='PLAYER_NAME',
-                        y=eje_ast_y,
-                        color='Z_CUSTOM',
-                        color_continuous_scale='Viridis',
-                        title=f"Top Jugadores Filtrados por {eje_ast_y}",
-                        hover_data=['TEAM_ABBREVIATION', 'PTS', 'REB', 'AST']
-                    )
-                    fig_ast_bar.update_layout(
-                        template="plotly_dark", height=380,
-                        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A',
-                        xaxis_title="", xaxis_tickangle=-45
-                    )
-                    st.plotly_chart(fig_ast_bar, use_container_width=True)
+                    df_gl_p = obtener_gamelog_jugador(p_id, temporada_sel)
+                    if not df_gl_p.empty:
+                        df_gl_p['PLAYER_NAME'] = p_name
+                        df_gl_p['TEAM_ABBREVIATION'] = p_team
+                        df_gl_p['STOCKS'] = df_gl_p['STL'] + df_gl_p['BLK']
+                        partidos_acumulados.append(df_gl_p)
+                
+                if not partidos_acumulados:
+                    st.warning("No se pudieron cargar los partidos de la API.")
+                else:
+                    df_all_games = pd.concat(partidos_acumulados, ignore_index=True)
+                    df_partidos_filtrados = df_all_games.query(sintaxis_query).sort_values(by='PTS', ascending=False).reset_index(drop=True)
+                    
+                    n_partidos = len(df_partidos_filtrados)
+                    jugadores_unicos = df_partidos_filtrados['PLAYER_NAME'].nunique() if n_partidos > 0 else 0
+                    
+                    r1, r2, r3 = st.columns(3)
+                    r1.metric("Partidos Encontrados", f"{n_partidos}")
+                    r2.metric("Jugadores Distintos", f"{jugadores_unicos}")
+                    r3.metric("Máxima Anotación en Muestra", f"{df_partidos_filtrados.iloc[0]['PTS']} PTS" if n_partidos > 0 else "0")
 
-                with col_vis2:
-                    st.markdown("#### 👤 Ficha Express de Jugador")
-                    jugador_ast_sel = st.selectbox(
-                        "Selecciona un jugador para ver su perfil al instante:",
-                        options=df_filtrado_ast['PLAYER_NAME'].tolist(),
-                        key="ast_player_select"
+                    if n_partidos == 0:
+                        st.warning("Ningún partido de la muestra cumple las condiciones exactas.")
+                    else:
+                        st.markdown("### 📋 Línea Estadística Exacta de los Partidos Encontrados")
+                        cols_game_display = ['PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
+                        st.dataframe(
+                            df_partidos_filtrados[cols_game_display],
+                            use_container_width=True,
+                            hide_index=True,
+                            column_config={
+                                "PLAYER_NAME": "Jugador",
+                                "TEAM_ABBREVIATION": "Equipo",
+                                "GAME_DATE": "Fecha",
+                                "MATCHUP": "Rival / Partido",
+                                "WL": "Res.",
+                                "FG_PCT": st.column_config.NumberColumn("FG%", format="%.3f"),
+                                "FT_PCT": st.column_config.NumberColumn("FT%", format="%.3f"),
+                            }
+                        )
+
+            else:
+                df_asistente = calcular_metricas_avanzadas(df_raw, punts_sel)
+                df_filtrado_ast = df_asistente.query(sintaxis_query).sort_values(by='Z_CUSTOM', ascending=False).reset_index(drop=True)
+                df_filtrado_ast['RANK'] = df_filtrado_ast.index + 1
+
+                n_res = len(df_filtrado_ast)
+                pct_res = (n_res / len(df_asistente) * 100) if len(df_asistente) > 0 else 0
+
+                res1, res2, res3 = st.columns(3)
+                res1.metric("Jugadores Encontrados", f"{n_res} de {len(df_asistente)}")
+                res2.metric("% de la Liga", f"{pct_res:.1f}%")
+                res3.metric("Mejor Valor Z-Custom", f"{df_filtrado_ast.iloc[0]['Z_CUSTOM']:.2f}" if n_res > 0 else "0.0")
+
+                if n_res == 0:
+                    st.warning("No se encontraron jugadores que cumplan las condiciones requeridas.")
+                else:
+                    st.dataframe(
+                        df_filtrado_ast[COLS_FULL], 
+                        use_container_width=True, 
+                        hide_index=True, 
+                        column_config=COLUMN_CONFIG
                     )
+
+                    st.markdown("---")
+                    st.markdown("### 📊 Gráficas e Inspección Express del Resultado")
+                    col_vis1, col_vis2 = st.columns([0.55, 0.45])
                     
-                    p_ast_data = df_filtrado_ast[df_filtrado_ast['PLAYER_NAME'] == jugador_ast_sel].iloc[0]
-                    p_ast_id = int(p_ast_data['PLAYER_ID'])
-                    img_ast_url = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p_ast_id}.png"
-                    
-                    c_img_ast, c_info_ast = st.columns([0.35, 0.65])
-                    with c_img_ast:
-                        st.image(img_ast_url, caption=p_ast_data['PLAYER_NAME'], width=120)
-                    with c_info_ast:
-                        st.markdown(f"**Rank:** #{p_ast_data['RANK']} | **Equipo:** {p_ast_data['TEAM_ABBREVIATION']}")
-                        st.markdown(f"**PTS:** {p_ast_data['PTS']:.1f} | **REB:** {p_ast_data['REB']:.1f} | **AST:** {p_ast_data['AST']:.1f}")
-                        st.markdown(f"**Z-Custom:** `{p_ast_data['Z_CUSTOM']:.2f}` | **TS%:** `{p_ast_data['TS_PCT']*100:.1f}%`")
-                    
-                    z_ast_vals = [p_ast_data[f"Z_{cat}"] for cat in CATEGORIAS]
-                    fig_mini_radar = go.Figure()
-                    fig_mini_radar.add_trace(go.Scatterpolar(
-                        r=z_ast_vals + [z_ast_vals[0]], theta=CATEGORIAS + [CATEGORIAS[0]],
-                        fill='toself', name=jugador_ast_sel,
-                        line_color='#38BDF8', fillcolor='rgba(56, 189, 248, 0.25)'
-                    ))
-                    fig_mini_radar.update_layout(
-                        template="plotly_dark",
-                        polar=dict(bgcolor='#0F172A', radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')),
-                        height=260, margin=dict(l=20, r=20, t=20, b=20),
-                        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
-                    )
-                    st.plotly_chart(fig_mini_radar, use_container_width=True)
+                    with col_vis1:
+                        st.markdown("#### 🎯 Comparativa de Búsqueda")
+                        eje_ast_y = st.selectbox(
+                            "Métrica a comparar en el gráfico:", 
+                            options=['Z_CUSTOM', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'TS_PCT', 'NET_RTG'], 
+                            key="ast_y_axis"
+                        )
+                        
+                        fig_ast_bar = px.bar(
+                            df_filtrado_ast.head(15),
+                            x='PLAYER_NAME',
+                            y=eje_ast_y,
+                            color='Z_CUSTOM',
+                            color_continuous_scale='Viridis',
+                            title=f"Top Jugadores Filtrados por {eje_ast_y}",
+                            hover_data=['TEAM_ABBREVIATION', 'PTS', 'REB', 'AST']
+                        )
+                        fig_ast_bar.update_layout(
+                            template="plotly_dark", height=380,
+                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A',
+                            xaxis_title="", xaxis_tickangle=-45
+                        )
+                        st.plotly_chart(fig_ast_bar, use_container_width=True)
+
+                    with col_vis2:
+                        st.markdown("#### 👤 Ficha Express de Jugador")
+                        jugador_ast_sel = st.selectbox(
+                            "Selecciona un jugador para ver su perfil al instante:",
+                            options=df_filtrado_ast['PLAYER_NAME'].tolist(),
+                            key="ast_player_select"
+                        )
+                        
+                        p_ast_data = df_filtrado_ast[df_filtrado_ast['PLAYER_NAME'] == jugador_ast_sel].iloc[0]
+                        p_ast_id = int(p_ast_data['PLAYER_ID'])
+                        img_ast_url = f"https://cdn.nba.com/headshots/nba/latest/260x190/{p_ast_id}.png"
+                        
+                        c_img_ast, c_info_ast = st.columns([0.35, 0.65])
+                        with c_img_ast:
+                            st.image(img_ast_url, caption=p_ast_data['PLAYER_NAME'], width=120)
+                        with c_info_ast:
+                            st.markdown(f"**Rank:** #{p_ast_data['RANK']} | **Equipo:** {p_ast_data['TEAM_ABBREVIATION']}")
+                            st.markdown(f"**PTS:** {p_ast_data['PTS']:.1f} | **REB:** {p_ast_data['REB']:.1f} | **AST:** {p_ast_data['AST']:.1f}")
+                            st.markdown(f"**Z-Custom:** `{p_ast_data['Z_CUSTOM']:.2f}` | **TS%:** `{p_ast_data['TS_PCT']*100:.1f}%`")
+                        
+                        z_ast_vals = [p_ast_data[f"Z_{cat}"] for cat in CATEGORIAS]
+                        fig_mini_radar = go.Figure()
+                        fig_mini_radar.add_trace(go.Scatterpolar(
+                            r=z_ast_vals + [z_ast_vals[0]], theta=CATEGORIAS + [CATEGORIAS[0]],
+                            fill='toself', name=jugador_ast_sel,
+                            line_color='#38BDF8', fillcolor='rgba(56, 189, 248, 0.25)'
+                        ))
+                        fig_mini_radar.update_layout(
+                            template="plotly_dark",
+                            polar=dict(bgcolor='#0F172A', radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')),
+                            height=260, margin=dict(l=20, r=20, t=20, b=20),
+                            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
+                        )
+                        st.plotly_chart(fig_mini_radar, use_container_width=True)
 
         except Exception as e:
             st.error(f"⚠️ Error al interpretar la consulta condicional. Por favor revisa la sintaxis. Detalle: {e}")
