@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 NBA Fantasy Analytics Pro — Dashboard L3 & Intelligence Hub
-Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados, game logs y palmarés oficial.
+Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados y consulta local instantánea.
 """
 
 import os
@@ -12,7 +12,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from nba_api.stats.endpoints import playerawards, playergamelog
 
 # ==========================================
 # 1. CONFIGURACIÓN CENTRALIZADA Y ESTILOS UI
@@ -26,57 +25,6 @@ st.set_page_config(
 CARPETA_L2: str = "L2_fantasy"
 CATEGORIAS: List[str] = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
 PALETA_COLORES: List[str] = ['#38BDF8', '#EF4444', '#10B981', '#F59E0B', '#A855F7']
-
-PALMARES_ESTRELLAS: Dict[str, List[Dict[str, str]]] = {
-    "Nikola Jokić": [
-        {"texto": "🏆 NBA Most Valuable Player (3x)", "anos": "2020-21, 2021-22, 2023-24"},
-        {"texto": "🏆 NBA Champion (1x)", "anos": "2022-23"},
-        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2022-23"},
-        {"texto": "🏆 All-NBA (8x)", "anos": "2018-19 a 2025-26"},
-        {"texto": "🏆 NBA All-Star (8x)", "anos": "2018-19 a 2025-26"}
-    ],
-    "LeBron James": [
-        {"texto": "🏆 NBA Most Valuable Player (4x)", "anos": "2008-09, 2009-10, 2011-12, 2012-13"},
-        {"texto": "🏆 NBA Champion (4x)", "anos": "2011-12, 2012-13, 2015-16, 2019-20"},
-        {"texto": "🏆 NBA Finals MVP (4x)", "anos": "2011-12, 2012-13, 2015-16, 2019-20"},
-        {"texto": "🏆 All-NBA (20x)", "anos": "2004-05 a 2023-24"},
-        {"texto": "🏆 NBA All-Star (20x)", "anos": "2004-05 a 2023-24"}
-    ],
-    "Giannis Antetokounmpo": [
-        {"texto": "🏆 NBA Most Valuable Player (2x)", "anos": "2018-19, 2019-20"},
-        {"texto": "🏆 NBA Champion (1x)", "anos": "2020-21"},
-        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2020-21"},
-        {"texto": "🏆 Defensive Player of the Year (1x)", "anos": "2019-20"},
-        {"texto": "🏆 All-NBA (8x)", "anos": "2016-17 a 2023-24"}
-    ],
-    "Stephen Curry": [
-        {"texto": "🏆 NBA Most Valuable Player (2x)", "anos": "2014-15, 2015-16"},
-        {"texto": "🏆 NBA Champion (4x)", "anos": "2014-15, 2016-17, 2017-18, 2021-22"},
-        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2021-22"},
-        {"texto": "🏆 All-NBA (10x)", "anos": "2013-14 a 2023-24"}
-    ],
-    "Joel Embiid": [
-        {"texto": "🏆 NBA Most Valuable Player (1x)", "anos": "2022-23"},
-        {"texto": "🏆 All-NBA (5x)", "anos": "2017-18 a 2022-23"},
-        {"texto": "🏆 NBA All-Star (7x)", "anos": "2017-18 a 2023-24"}
-    ],
-    "Kevin Durant": [
-        {"texto": "🏆 NBA Most Valuable Player (1x)", "anos": "2013-14"},
-        {"texto": "🏆 NBA Champion (2x)", "anos": "2016-17, 2017-18"},
-        {"texto": "🏆 NBA Finals MVP (2x)", "anos": "2016-17, 2017-18"},
-        {"texto": "🏆 All-NBA (11x)", "anos": "2009-10 a 2023-24"}
-    ],
-    "Luka Dončić": [
-        {"texto": "🏆 All-NBA (5x)", "anos": "2019-20 a 2023-24"},
-        {"texto": "🏆 NBA All-Star (5x)", "anos": "2019-20 a 2023-24"},
-        {"texto": "🏆 NBA Rookie of the Year (1x)", "anos": "2018-19"}
-    ]
-}
-
-MVPS_NBA = [
-    "Nikola Jokić", "LeBron James", "Giannis Antetokounmpo", "Stephen Curry",
-    "Joel Embiid", "Kevin Durant", "Russell Westbrook", "James Harden", "Derrick Rose"
-]
 
 COLUMN_CONFIG = {
     "RANK": st.column_config.NumberColumn("Rank", help="Posición en el ranking según Z_CUSTOM", format="%d"),
@@ -223,66 +171,62 @@ def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) ->
     df['DEF_RTG'] = (112 - (df['Z_REB'] + df['Z_STL'] + df['Z_BLK'] - df['Z_TOV']) * 2.8).round(1)
     df['NET_RTG'] = (df['OFF_RTG'] - df['DEF_RTG']).round(1)
 
-    df['IS_MVP'] = df['PLAYER_NAME'].isin(MVPS_NBA) | (df['Z_CUSTOM'] >= 5.5)
-    df['IS_ALLSTAR'] = df['PLAYER_NAME'].isin(PALMARES_ESTRELLAS.keys()) | (df['Z_CUSTOM'] >= 3.5)
+    df['IS_MVP'] = df['Z_CUSTOM'] >= 5.0
+    df['IS_ALLSTAR'] = df['Z_CUSTOM'] >= 3.0
     
     return df
 
-@st.cache_data(ttl=86400)
-def obtener_premios_oficiales_nba(player_id: int, player_name: str = "") -> List[Dict[str, str]]:
-    if player_name in PALMARES_ESTRELLAS:
-        return PALMARES_ESTRELLAS[player_name]
-        
-    headers = {
-        'Host': 'stats.nba.com',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Referer': 'https://www.nba.com/'
-    }
-    try:
-        awards_df = playerawards.PlayerAwards(player_id=player_id, headers=headers, timeout=5).get_data_frames()[0]
-        if awards_df.empty:
-            return []
-            
-        awards_df = awards_df[~awards_df['DESCRIPTION'].str.contains("Player of the Week|Player of the Month", na=False)]
-        
-        premios_formateados = []
-        for desc, group in awards_df.groupby('DESCRIPTION'):
-            cantidad = len(group)
-            col_season = 'SEASON' if 'SEASON' in group.columns else ('YEAR_AWARDED' if 'YEAR_AWARDED' in group.columns else None)
-            
-            if col_season and not group[col_season].isna().all():
-                anos_str = ", ".join(group[col_season].dropna().astype(str).tolist())
-            else:
-                anos_str = "Temporadas registradas"
-                
-            label = f"🏆 {desc} ({cantidad}x)" if cantidad > 1 else f"🏆 {desc}"
-            premios_formateados.append({"texto": label, "anos": anos_str})
-            
-        return premios_formateados[:8]
-    except Exception:
+@st.cache_data(ttl=3600)
+def obtener_premios_oficiales_nba(player_id: int) -> List[Dict[str, str]]:
+    """Carga los premios directamente del dataset local L2_palmares.csv."""
+    path_p = os.path.join(CARPETA_L2, "L2_palmares.csv")
+    if not os.path.exists(path_p):
         return []
+    
+    df_palmares = pd.read_csv(path_p)
+    j_p = df_palmares[df_palmares['PLAYER_ID'] == player_id]
+    
+    if j_p.empty:
+        return []
+        
+    return [{"texto": row['TITULO'], "anos": str(row['ANOS'])} for _, row in j_p.iterrows()]
 
-@st.cache_data(ttl=43200)
+@st.cache_data(ttl=3600)
 def obtener_gamelog_jugador(player_id: int, temporada_nba: str) -> pd.DataFrame:
-    try:
-        season_fmt = temporada_nba.replace("_", "-")
-        df_gl = playergamelog.PlayerGameLog(player_id=player_id, season=season_fmt).get_data_frames()[0]
-        return df_gl
-    except Exception:
+    """Carga los partidos del jugador desde el dataset local L2_gamelogs_<temporada>.csv."""
+    path_gl = os.path.join(CARPETA_L2, f"L2_gamelogs_{temporada_nba}.csv")
+    if not os.path.exists(path_gl):
         return pd.DataFrame()
+        
+    df_gl = pd.read_csv(path_gl)
+    return df_gl[df_gl['PLAYER_ID'] == player_id].copy()
+
+@st.cache_data(ttl=3600)
+def cargar_gamelogs_totales_temporada(temporada_nba: str) -> pd.DataFrame:
+    """Carga el Game Log completo de todos los jugadores para la temporada seleccionada."""
+    path_gl = os.path.join(CARPETA_L2, f"L2_gamelogs_{temporada_nba}.csv")
+    if not os.path.exists(path_gl):
+        return pd.DataFrame()
+    return pd.read_csv(path_gl)
 
 @st.cache_data(ttl=3600)
 def cargar_dataset_l2(ruta_archivo: str) -> pd.DataFrame:
     return pd.read_csv(ruta_archivo)
 
 @st.cache_data
+def cargar_todos_los_csvs(carpeta_l2: str) -> Dict[str, pd.DataFrame]:
+    datasets = {}
+    if os.path.exists(carpeta_l2):
+        for archivo in os.listdir(carpeta_l2):
+            if archivo.startswith("L2_") and archivo.endswith(".csv") and not archivo.startswith("L2_gamelogs_") and archivo != "L2_palmares.csv":
+                temp_nombre = archivo.replace("L2_", "").replace(".csv", "").replace("_", "-")
+                datasets[temp_nombre] = pd.read_csv(os.path.join(carpeta_l2, archivo))
+    return datasets
+
 def obtener_historico_jugador(nombre_jugador: str, carpeta_l2: str, punts_sel: List[str]) -> pd.DataFrame:
-    archivos = [f for f in os.listdir(carpeta_l2) if f.startswith("L2_") and f.endswith(".csv")]
+    datasets = cargar_todos_los_csvs(carpeta_l2)
     registros = []
-    for archivo in archivos:
-        temp_nombre = archivo.replace("L2_", "").replace(".csv", "").replace("_", "-")
-        df_temp = pd.read_csv(os.path.join(carpeta_l2, archivo))
+    for temp_nombre, df_temp in datasets.items():
         j_row = df_temp[df_temp['PLAYER_NAME'] == nombre_jugador]
         if not j_row.empty:
             row_dict = j_row.iloc[0].to_dict()
@@ -334,9 +278,15 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
 def parsear_consulta_natural(texto_consulta: str) -> str:
     text = texto_consulta.lower()
     
+    text = re.sub(r'(<|<=|>|>=|==)(\d+)', r'\1 \2', text)
+    text = re.sub(r'(\d+)(<|<=|>|>=|==)', r'\1 \2', text)
+
     is_mvp = bool(re.search(r'\b(mvps?)\b', text))
     is_allstar = bool(re.search(r'\b(all\s*stars?|allstar)\b', text))
     text = re.sub(r'\b(mvps?|all\s*stars?|allstar)\b', ' ', text)
+
+    text = re.sub(r'partidos?\s+de\s*(<|<=|>|>=|==)?\s*(\d+)\s*(minutos|min|mins)', r'MIN \1 \2', text)
+    text = re.sub(r'(<|<=|>|>=|==)?\s*(\d+)\s*(minutos|min|mins)\s*jugados?', r'MIN \1 \2', text)
 
     operadores_map = [
         (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a|por encima de', '>='),
@@ -349,19 +299,19 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
         text = re.sub(pat, op, text)
 
     metricas_map = [
-        (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
         (r'\b(minutos|min|mins|tiempo)\b', 'MIN'),
+        (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
         (r'\b(rebotes|reb|capturas)\b', 'REB'),
         (r'\b(asistencias|ast|pases)\b', 'AST'),
         (r'\b(robos|stl|recuperaciones)\b', 'STL'),
         (r'\b(tapones|bloqueos|blk)\b', 'BLK'),
         (r'\b(triples|3pm|fg3m)\b', 'FG3M'),
-        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP'),
         (r'\b(p[eé]rdidas|perdidas|tov|turnovers)\b', 'TOV'),
         (r'\b(net rating|net_rtg)\b', 'NET_RTG'),
         (r'\b(off rating|off_rtg)\b', 'OFF_RTG'),
         (r'\b(def rating|def_rtg)\b', 'DEF_RTG'),
-        (r'\b(z-custom|z_custom)\b', 'Z_CUSTOM')
+        (r'\b(z-custom|z_custom)\b', 'Z_CUSTOM'),
+        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP')
     ]
     for pat, col in metricas_map:
         text = re.sub(pat, col, text)
@@ -407,7 +357,7 @@ with col_h2:
         * **Net Rating:** Diferencial Neto de impacto en pista.
         """)
 
-archivos_l2 = [f for f in os.listdir(CARPETA_L2) if f.startswith("L2_") and f.endswith(".csv")] if os.path.exists(CARPETA_L2) else []
+archivos_l2 = [f for f in os.listdir(CARPETA_L2) if f.startswith("L2_") and f.endswith(".csv") and not f.startswith("L2_gamelogs_") and f != "L2_palmares.csv"] if os.path.exists(CARPETA_L2) else []
 if not archivos_l2:
     st.error(f"No se encontraron datasets en '{CARPETA_L2}'. Ejecuta L1 y L2 primero.")
     st.stop()
@@ -469,7 +419,7 @@ with tab2:
         player_id = int(p_data['PLAYER_ID'])
         img_url = f"https://cdn.nba.com/headshots/nba/latest/260x190/{player_id}.png"
 
-        premios_oficiales = obtener_premios_oficiales_nba(player_id, p_data['PLAYER_NAME'])
+        premios_oficiales = obtener_premios_oficiales_nba(player_id)
         insignias_fan = calcular_insignias_fantasy(p_data)
 
         html_oficiales = "".join([f'<div class="badge-chip badge-official" title="Temporadas: {p["anos"]}">{p["texto"]}</div>' for p in premios_oficiales])
@@ -561,7 +511,7 @@ RANK #{p_data['RANK']}
             df_gl = obtener_gamelog_jugador(player_id, temporada_sel)
 
             if df_gl.empty:
-                st.warning("⚠️ No se pudieron obtener los datos de partidos en vivo desde la API de la NBA.")
+                st.warning("⚠️ No se encontraron Game Logs en el repositorio para este jugador.")
             else:
                 c1_f, c2_f, c3_f, c4_f = st.columns(4)
                 
@@ -717,6 +667,8 @@ with tab4:
     size_x, size_y = x_range * 0.08, y_range * 0.08
 
     for _, row in df_scatter.iterrows():
+        if pd.isna(row.get('PLAYER_ID')):
+            continue
         p_id = int(row['PLAYER_ID'])
         fig_scatter.add_layout_image(dict(
             source=f"https://cdn.nba.com/headshots/nba/latest/260x190/{p_id}.png",
@@ -739,7 +691,7 @@ with tab4:
 # TAB 5: ASISTENTE NL Y QUERY BUILDER GLOBAL
 with tab5:
     st.subheader("🤖 Asistente Analítico & Buscador de Actuaciones Global")
-    st.caption(f"Consulta promedios o busca partidos concretos en vivo de la temporada {temporada_sel.replace('_', '-')}.")
+    st.caption(f"Consulta promedios o busca partidos concretos en la base de datos de la temporada {temporada_sel.replace('_', '-')}.")
 
     modo_busqueda = st.radio(
         "Ámbito de Consulta:",
@@ -751,9 +703,9 @@ with tab5:
     q_col1, q_col2, q_col3, q_col4 = st.columns(4)
     
     preset_query = ""
-    if q_col1.button("🔥 MVPs con +10 REB"):
+    if q_col1.button("🔥 Candidatos MVP (+10 REB)"):
         preset_query = "MVPs con +10 reb"
-    if q_col2.button("🎯 All-Star con +25 PTS"):
+    if q_col2.button("🎯 Nivel All-Star (+25 PTS)"):
         preset_query = "All-Star con +25 pts"
     if q_col3.button("🛡️ Especialistas (+1.5 STL, +1.5 BLK)"):
         preset_query = "+1.5 stl y +1.5 blk"
@@ -764,8 +716,8 @@ with tab5:
 
     input_usuario = st.text_input(
         "💬 Escribe tu consulta en lenguaje natural o sintaxis condicional:",
-        value=preset_query if preset_query else "partidos de < 10 minutos jugados con puntos > 20",
-        help="Ejemplo: 'partidos de < 10 minutos con puntos > 20', 'MVPs con +12 reb' o 'MIN < 10 and PTS > 20'"
+        value=preset_query if preset_query else "partidos de < 15 minutos jugados con puntos > 17",
+        help="Ejemplo: 'partidos de < 15 minutos con puntos > 17', 'MVPs con +12 reb' o 'MIN < 15 and PTS > 17'"
     )
 
     if input_usuario:
@@ -774,29 +726,17 @@ with tab5:
 
         try:
             if modo_busqueda == "⚡ Partidos Concretos (Game Logs de la Liga)":
-                st.info("🔎 Escaneando historial de partidos de la muestra...")
+                df_all_games = cargar_gamelogs_totales_temporada(temporada_sel)
                 
-                top_players_gamelog = df_ranking.head(25)
-                partidos_acumulados = []
-                
-                for _, p_row in top_players_gamelog.iterrows():
-                    p_id = int(p_row['PLAYER_ID'])
-                    p_name = p_row['PLAYER_NAME']
-                    p_team = p_row['TEAM_ABBREVIATION']
-                    
-                    df_gl_p = obtener_gamelog_jugador(p_id, temporada_sel)
-                    if not df_gl_p.empty:
-                        df_gl_p['PLAYER_NAME'] = p_name
-                        df_gl_p['TEAM_ABBREVIATION'] = p_team
-                        df_gl_p['STOCKS'] = df_gl_p['STL'] + df_gl_p['BLK']
-                        df_gl_p['IS_MVP'] = p_name in MVPS_NBA
-                        df_gl_p['IS_ALLSTAR'] = p_name in PALMARES_ESTRELLAS.keys()
-                        partidos_acumulados.append(df_gl_p)
-                
-                if not partidos_acumulados:
-                    st.warning("No se pudieron cargar los partidos de la API.")
+                if df_all_games.empty:
+                    st.warning(f"No hay Game Logs locales generados para la temporada {temporada_sel}.")
                 else:
-                    df_all_games = pd.concat(partidos_acumulados, ignore_index=True)
+                    # Unir banderas de estatus desde el ranking activo
+                    df_flags = df_ranking[['PLAYER_NAME', 'IS_MVP', 'IS_ALLSTAR']].drop_duplicates()
+                    df_all_games = df_all_games.merge(df_flags, on='PLAYER_NAME', how='left')
+                    df_all_games['IS_MVP'] = df_all_games['IS_MVP'].fillna(False)
+                    df_all_games['IS_ALLSTAR'] = df_all_games['IS_ALLSTAR'].fillna(False)
+
                     df_partidos_filtrados = df_all_games.query(sintaxis_query).sort_values(by='PTS', ascending=False).reset_index(drop=True)
                     
                     n_partidos = len(df_partidos_filtrados)
@@ -812,8 +752,10 @@ with tab5:
                     else:
                         st.markdown("### 📋 Línea Estadística Exacta de los Partidos Encontrados")
                         cols_game_display = ['PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
+                        cols_existentes = [c for c in cols_game_display if c in df_partidos_filtrados.columns]
+                        
                         st.dataframe(
-                            df_partidos_filtrados[cols_game_display],
+                            df_partidos_filtrados[cols_existentes],
                             width="stretch",
                             hide_index=True,
                             column_config={
