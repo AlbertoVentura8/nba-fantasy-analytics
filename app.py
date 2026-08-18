@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 NBA Fantasy Analytics Pro — Dashboard L3 & Intelligence Hub
-Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados, game logs y palmarés oficial.
+Plataforma analítica con inteligencia de lenguaje natural avanzada, ratings y palmarés oficial.
 """
 
 import os
@@ -26,6 +26,29 @@ st.set_page_config(
 CARPETA_L2: str = "L2_fantasy"
 CATEGORIAS: List[str] = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
 PALETA_COLORES: List[str] = ['#38BDF8', '#EF4444', '#10B981', '#F59E0B', '#A855F7']
+
+PALMARES_ESTRELLAS: Dict[str, List[str]] = {
+    "Nikola Jokić": ["🏆 NBA Most Valuable Player (3x)", "🏆 NBA Champion (1x)", "🏆 NBA Finals MVP (1x)", "🏆 All-NBA (8x)", "🏆 NBA All-Star (8x)"],
+    "LeBron James": ["🏆 NBA Most Valuable Player (4x)", "🏆 NBA Champion (4x)", "🏆 NBA Finals MVP (4x)", "🏆 All-NBA (20x)", "🏆 NBA All-Star (20x)"],
+    "Giannis Antetokounmpo": ["🏆 NBA Most Valuable Player (2x)", "🏆 NBA Champion (1x)", "🏆 NBA Finals MVP (1x)", "🏆 Defensive Player of the Year (1x)", "🏆 All-NBA (8x)", "🏆 NBA All-Star (8x)"],
+    "Stephen Curry": ["🏆 NBA Most Valuable Player (2x)", "🏆 NBA Champion (4x)", "🏆 NBA Finals MVP (1x)", "🏆 All-NBA (10x)", "🏆 NBA All-Star (10x)"],
+    "Joel Embiid": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (5x)", "🏆 NBA All-Star (7x)", "🏆 NBA Scoring Champion (2x)"],
+    "Kevin Durant": ["🏆 NBA Most Valuable Player (1x)", "🏆 NBA Champion (2x)", "🏆 NBA Finals MVP (2x)", "🏆 All-NBA (11x)", "🏆 NBA All-Star (14x)"],
+    "Russell Westbrook": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (9x)", "🏆 NBA All-Star (9x)"],
+    "James Harden": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (7x)", "🏆 NBA All-Star (10x)"],
+    "Derrick Rose": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (1x)", "🏆 NBA All-Star (3x)"],
+    "Luka Dončić": ["🏆 All-NBA (5x)", "🏆 NBA All-Star (5x)", "🏆 NBA Rookie of the Year (1x)"],
+    "Shai Gilgeous-Alexander": ["🏆 All-NBA (2x)", "🏆 NBA All-Star (2x)"],
+    "Jayson Tatum": ["🏆 NBA Champion (1x)", "🏆 All-NBA (4x)", "🏆 NBA All-Star (5x)"],
+    "Anthony Davis": ["🏆 NBA Champion (1x)", "🏆 All-NBA (5x)", "🏆 NBA All-Star (9x)"],
+    "Kawhi Leonard": ["🏆 NBA Champion (2x)", "🏆 NBA Finals MVP (2x)", "🏆 Defensive Player of the Year (2x)"],
+    "Damian Lillard": ["🏆 All-NBA (7x)", "🏆 NBA All-Star (8x)"]
+}
+
+MVPS_NBA = [
+    "Nikola Jokić", "LeBron James", "Giannis Antetokounmpo", "Stephen Curry",
+    "Joel Embiid", "Kevin Durant", "Russell Westbrook", "James Harden", "Derrick Rose"
+]
 
 COLUMN_CONFIG = {
     "RANK": st.column_config.NumberColumn("Rank", help="Posición en el ranking según Z_CUSTOM", format="%d"),
@@ -170,12 +193,25 @@ def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) ->
     df['OFF_RTG'] = (108 + (df['Z_PTS'] + df['Z_AST'] + df['Z_FG3M'] + df['Z_FG_PCT'] + df['Z_FT_PCT']) * 3.2).round(1)
     df['DEF_RTG'] = (112 - (df['Z_REB'] + df['Z_STL'] + df['Z_BLK'] - df['Z_TOV']) * 2.8).round(1)
     df['NET_RTG'] = (df['OFF_RTG'] - df['DEF_RTG']).round(1)
+
+    df['IS_MVP'] = df['PLAYER_NAME'].isin(MVPS_NBA) | (df['Z_CUSTOM'] >= 5.5)
+    df['IS_ALLSTAR'] = df['PLAYER_NAME'].isin(PALMARES_ESTRELLAS.keys()) | (df['Z_CUSTOM'] >= 3.5)
+    
     return df
 
 @st.cache_data(ttl=86400)
-def obtener_premios_oficiales_nba(player_id: int) -> List[str]:
+def obtener_premios_oficiales_nba(player_id: int, player_name: str = "") -> List[str]:
+    if player_name in PALMARES_ESTRELLAS:
+        return PALMARES_ESTRELLAS[player_name]
+        
+    headers = {
+        'Host': 'stats.nba.com',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.nba.com/'
+    }
     try:
-        awards_df = playerawards.PlayerAwards(player_id=player_id).get_data_frames()[0]
+        awards_df = playerawards.PlayerAwards(player_id=player_id, headers=headers, timeout=5).get_data_frames()[0]
         if awards_df.empty:
             return []
         conteo = awards_df['DESCRIPTION'].value_counts()
@@ -256,79 +292,6 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
         
     return badges
 
-def parsear_consulta_natural(texto_consulta: str) -> str:
-    text = texto_consulta.lower()
-    
-    text = re.sub(r'(<|<=|>|>=|==)(\d+)', r'\1 \2', text)
-    text = re.sub(r'(\d+)(<|<=|>|>=|==)', r'\1 \2', text)
-
-    text = re.sub(r'partidos?\s+de\s+<', 'MIN <', text)
-    text = re.sub(r'partidos?\s+de\s+>', 'MIN >', text)
-
-    relleno = [
-        r'\bdime\b', r'\bmu[eé]strame\b', r'\bbusco\b', r'\bquiero\s+ver\b',
-        r'\bjugadores\b', r'\bcon\b', r'\bque\s+tengan\b', r'\bque\s+promedien\b',
-        r'\bpor\s+partido\b', r'\bde\s+media\b', r'\ben\s+promedio\b', r'\bjugados\b',
-        r'\bal\s+menos\b', r'\bcomo\s+m[ií]nimo\b'
-    ]
-    for r in relleno:
-        text = re.sub(r, ' ', text)
-        
-    metricas_map = [
-        (r'\b(minutos|min|mins|tiempo)\b', 'MIN'),
-        (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
-        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP'),
-        (r'\b(rebotes|reb|capturas)\b', 'REB'),
-        (r'\b(asistencias|ast|pases)\b', 'AST'),
-        (r'\b(robos|stl|recuperaciones)\b', 'STL'),
-        (r'\b(tapones|bloqueos|blk)\b', 'BLK'),
-        (r'\b(triples|3pm)\b', 'FG3M'),
-        (r'\b(p[eé]rdidas|tov|turnovers)\b', 'TOV'),
-        (r'\b(net rating|net_rtg)\b', 'NET_RTG'),
-        (r'\b(off rating|off_rtg)\b', 'OFF_RTG'),
-        (r'\b(def rating|def_rtg)\b', 'DEF_RTG'),
-        (r'\b(z-custom|z_custom)\b', 'Z_CUSTOM')
-    ]
-    for pat, col in metricas_map:
-        text = re.sub(pat, col, text)
-
-    operadores_map = [
-        (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a', '>='),
-        (r'm[eé]nos de|menor(?:es)? a|inferior(?:es)? a', '<='),
-        (r'igual a', '==')
-    ]
-    for pat, op in operadores_map:
-        text = re.sub(pat, op, text)
-
-    text = re.sub(r'\b(y|además|ademas)\b', ',', text)
-    partes = [p.strip() for p in text.split(',') if p.strip()]
-    
-    condiciones = []
-    cols_validas = ['GP', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'TOV', 'NET_RTG', 'OFF_RTG', 'DEF_RTG', 'Z_CUSTOM']
-    
-    for parte in partes:
-        col_encontrada = None
-        for c in cols_validas:
-            if re.search(r'\b' + c + r'\b', parte):
-                col_encontrada = c
-                break
-                
-        if col_encontrada:
-            op_encontrado = None
-            for op in ['>=', '<=', '==', '>', '<']:
-                if op in parte:
-                    op_encontrado = op
-                    break
-            
-            nums = re.findall(r'\d+(?:\.\d+)?', parte)
-            if nums:
-                num = nums[0]
-                if not op_encontrado:
-                    op_encontrado = '>='
-                condiciones.append(f"{col_encontrada} {op_encontrado} {num}")
-
-    return " and ".join(condiciones) if condiciones else texto_consulta.strip()
-
 # ==========================================
 # 3. INTERFAZ Y NAVEGACIÓN (STREAMLIT)
 # ==========================================
@@ -336,7 +299,7 @@ def parsear_consulta_natural(texto_consulta: str) -> str:
 col_h1, col_h2 = st.columns([0.82, 0.18])
 with col_h1:
     st.markdown('<p class="main-title">NBA Fantasy Analytics Pro</p>', unsafe_allow_html=True)
-    st.caption("Plataforma analítica con inteligencia artificial, ratings avanzados y palmarés oficial.")
+    st.caption("Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados y palmarés oficial.")
 
 with col_h2:
     with st.popover("ℹ️ Glosario Táctico"):
@@ -408,13 +371,12 @@ with tab2:
         player_id = int(p_data['PLAYER_ID'])
         img_url = f"https://cdn.nba.com/headshots/nba/latest/260x190/{player_id}.png"
 
-        premios_oficiales = obtener_premios_oficiales_nba(player_id)
+        premios_oficiales = obtener_premios_oficiales_nba(player_id, p_data['PLAYER_NAME'])
         insignias_fan = calcular_insignias_fantasy(p_data)
 
         html_oficiales = "".join([f'<div class="badge-chip badge-official">{p}</div>' for p in premios_oficiales])
         html_fantasy = "".join([f'<div class="badge-chip {b["clase"]}">{b["texto"]}</div>' for b in insignias_fan])
 
-        # Se eliminan los espacios de sangrado para que Markdown no interprete el HTML como un bloque de código
         st.markdown(f"""<div class="player-hero-card">
 <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
 <img src="{img_url}" style="width: 125px; border-radius: 16px; background: #0F172A; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.4);">
@@ -683,7 +645,7 @@ with tab5:
 
     modo_busqueda = st.radio(
         "Ámbito de Consulta:",
-        options=["⚡ Partidos Concretos (Game Logs de la Liga)", "📊 Promedios de Temporada"],
+        options=["📊 Promedios de Temporada", "⚡ Partidos Concretos (Game Logs de la Liga)"],
         horizontal=True
     )
 
@@ -691,21 +653,21 @@ with tab5:
     q_col1, q_col2, q_col3, q_col4 = st.columns(4)
     
     preset_query = ""
-    if q_col1.button("🔥 Partidos MIN < 15 y PTS > 15"):
-        preset_query = "MIN < 15 and PTS > 15"
-    if q_col2.button("🎯 Partidos PTS >= 40 y FG% >= 0.60"):
-        preset_query = "PTS >= 40 and FG_PCT >= 0.60"
-    if q_col3.button("🛡️ Partidos STOCKS >= 6"):
-        preset_query = "STOCKS >= 6"
-    if q_col4.button("👑 Partidos AST >= 15 y TOV <= 2"):
-        preset_query = "AST >= 15 and TOV <= 2"
+    if q_col1.button("🔥 MVPs con +10 REB"):
+        preset_query = "MVPs con +10 reb"
+    if q_col2.button("🎯 All-Star con +25 PTS"):
+        preset_query = "All-Star con +25 pts"
+    if q_col3.button("🛡️ Especialistas (+1.5 STL, +1.5 BLK)"):
+        preset_query = "+1.5 stl y +1.5 blk"
+    if q_col4.button("👑 Playmakers (+8 AST, -2.5 TOV)"):
+        preset_query = "+8 ast y -2.5 tov"
 
     st.markdown("---")
 
     input_usuario = st.text_input(
         "💬 Escribe tu consulta en lenguaje natural o sintaxis condicional:",
-        value=preset_query if preset_query else "partidos de < 10 minutos jugados con puntos > 15",
-        help="Ejemplo: 'partidos de < 10 minutos con puntos > 15' o 'MIN < 10 and PTS > 15'"
+        value=preset_query if preset_query else "partidos de < 10 minutos jugados con puntos > 20",
+        help="Ejemplo: 'partidos de < 10 minutos con puntos > 20', 'MVPs con +12 reb' o 'MIN < 10 and PTS > 20'"
     )
 
     if input_usuario:
@@ -714,7 +676,7 @@ with tab5:
 
         try:
             if modo_busqueda == "⚡ Partidos Concretos (Game Logs de la Liga)":
-                st.info("🔎 Escaneando historial de partidos de los jugadores activos de la temporada...")
+                st.info("🔎 Escaneando historial de partidos de la muestra...")
                 
                 top_players_gamelog = df_ranking.head(25)
                 partidos_acumulados = []
@@ -729,6 +691,8 @@ with tab5:
                         df_gl_p['PLAYER_NAME'] = p_name
                         df_gl_p['TEAM_ABBREVIATION'] = p_team
                         df_gl_p['STOCKS'] = df_gl_p['STL'] + df_gl_p['BLK']
+                        df_gl_p['IS_MVP'] = p_name in MVPS_NBA
+                        df_gl_p['IS_ALLSTAR'] = p_name in PALMARES_ESTRELLAS.keys()
                         partidos_acumulados.append(df_gl_p)
                 
                 if not partidos_acumulados:
