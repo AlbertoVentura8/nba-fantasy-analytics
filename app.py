@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 NBA Fantasy Analytics Pro — Dashboard L3 & Intelligence Hub
-Plataforma analítica con inteligencia de lenguaje natural avanzada, ratings y palmarés oficial.
+Plataforma analítica con inteligencia de lenguaje natural, ratings avanzados, game logs y palmarés oficial.
 """
 
 import os
@@ -27,22 +27,50 @@ CARPETA_L2: str = "L2_fantasy"
 CATEGORIAS: List[str] = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
 PALETA_COLORES: List[str] = ['#38BDF8', '#EF4444', '#10B981', '#F59E0B', '#A855F7']
 
-PALMARES_ESTRELLAS: Dict[str, List[str]] = {
-    "Nikola Jokić": ["🏆 NBA Most Valuable Player (3x)", "🏆 NBA Champion (1x)", "🏆 NBA Finals MVP (1x)", "🏆 All-NBA (8x)", "🏆 NBA All-Star (8x)"],
-    "LeBron James": ["🏆 NBA Most Valuable Player (4x)", "🏆 NBA Champion (4x)", "🏆 NBA Finals MVP (4x)", "🏆 All-NBA (20x)", "🏆 NBA All-Star (20x)"],
-    "Giannis Antetokounmpo": ["🏆 NBA Most Valuable Player (2x)", "🏆 NBA Champion (1x)", "🏆 NBA Finals MVP (1x)", "🏆 Defensive Player of the Year (1x)", "🏆 All-NBA (8x)", "🏆 NBA All-Star (8x)"],
-    "Stephen Curry": ["🏆 NBA Most Valuable Player (2x)", "🏆 NBA Champion (4x)", "🏆 NBA Finals MVP (1x)", "🏆 All-NBA (10x)", "🏆 NBA All-Star (10x)"],
-    "Joel Embiid": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (5x)", "🏆 NBA All-Star (7x)", "🏆 NBA Scoring Champion (2x)"],
-    "Kevin Durant": ["🏆 NBA Most Valuable Player (1x)", "🏆 NBA Champion (2x)", "🏆 NBA Finals MVP (2x)", "🏆 All-NBA (11x)", "🏆 NBA All-Star (14x)"],
-    "Russell Westbrook": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (9x)", "🏆 NBA All-Star (9x)"],
-    "James Harden": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (7x)", "🏆 NBA All-Star (10x)"],
-    "Derrick Rose": ["🏆 NBA Most Valuable Player (1x)", "🏆 All-NBA (1x)", "🏆 NBA All-Star (3x)"],
-    "Luka Dončić": ["🏆 All-NBA (5x)", "🏆 NBA All-Star (5x)", "🏆 NBA Rookie of the Year (1x)"],
-    "Shai Gilgeous-Alexander": ["🏆 All-NBA (2x)", "🏆 NBA All-Star (2x)"],
-    "Jayson Tatum": ["🏆 NBA Champion (1x)", "🏆 All-NBA (4x)", "🏆 NBA All-Star (5x)"],
-    "Anthony Davis": ["🏆 NBA Champion (1x)", "🏆 All-NBA (5x)", "🏆 NBA All-Star (9x)"],
-    "Kawhi Leonard": ["🏆 NBA Champion (2x)", "🏆 NBA Finals MVP (2x)", "🏆 Defensive Player of the Year (2x)"],
-    "Damian Lillard": ["🏆 All-NBA (7x)", "🏆 NBA All-Star (8x)"]
+PALMARES_ESTRELLAS: Dict[str, List[Dict[str, str]]] = {
+    "Nikola Jokić": [
+        {"texto": "🏆 NBA Most Valuable Player (3x)", "anos": "2020-21, 2021-22, 2023-24"},
+        {"texto": "🏆 NBA Champion (1x)", "anos": "2022-23"},
+        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2022-23"},
+        {"texto": "🏆 All-NBA (8x)", "anos": "2018-19 a 2025-26"},
+        {"texto": "🏆 NBA All-Star (8x)", "anos": "2018-19 a 2025-26"}
+    ],
+    "LeBron James": [
+        {"texto": "🏆 NBA Most Valuable Player (4x)", "anos": "2008-09, 2009-10, 2011-12, 2012-13"},
+        {"texto": "🏆 NBA Champion (4x)", "anos": "2011-12, 2012-13, 2015-16, 2019-20"},
+        {"texto": "🏆 NBA Finals MVP (4x)", "anos": "2011-12, 2012-13, 2015-16, 2019-20"},
+        {"texto": "🏆 All-NBA (20x)", "anos": "2004-05 a 2023-24"},
+        {"texto": "🏆 NBA All-Star (20x)", "anos": "2004-05 a 2023-24"}
+    ],
+    "Giannis Antetokounmpo": [
+        {"texto": "🏆 NBA Most Valuable Player (2x)", "anos": "2018-19, 2019-20"},
+        {"texto": "🏆 NBA Champion (1x)", "anos": "2020-21"},
+        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2020-21"},
+        {"texto": "🏆 Defensive Player of the Year (1x)", "anos": "2019-20"},
+        {"texto": "🏆 All-NBA (8x)", "anos": "2016-17 a 2023-24"}
+    ],
+    "Stephen Curry": [
+        {"texto": "🏆 NBA Most Valuable Player (2x)", "anos": "2014-15, 2015-16"},
+        {"texto": "🏆 NBA Champion (4x)", "anos": "2014-15, 2016-17, 2017-18, 2021-22"},
+        {"texto": "🏆 NBA Finals MVP (1x)", "anos": "2021-22"},
+        {"texto": "🏆 All-NBA (10x)", "anos": "2013-14 a 2023-24"}
+    ],
+    "Joel Embiid": [
+        {"texto": "🏆 NBA Most Valuable Player (1x)", "anos": "2022-23"},
+        {"texto": "🏆 All-NBA (5x)", "anos": "2017-18 a 2022-23"},
+        {"texto": "🏆 NBA All-Star (7x)", "anos": "2017-18 a 2023-24"}
+    ],
+    "Kevin Durant": [
+        {"texto": "🏆 NBA Most Valuable Player (1x)", "anos": "2013-14"},
+        {"texto": "🏆 NBA Champion (2x)", "anos": "2016-17, 2017-18"},
+        {"texto": "🏆 NBA Finals MVP (2x)", "anos": "2016-17, 2017-18"},
+        {"texto": "🏆 All-NBA (11x)", "anos": "2009-10 a 2023-24"}
+    ],
+    "Luka Dončić": [
+        {"texto": "🏆 All-NBA (5x)", "anos": "2019-20 a 2023-24"},
+        {"texto": "🏆 NBA All-Star (5x)", "anos": "2019-20 a 2023-24"},
+        {"texto": "🏆 NBA Rookie of the Year (1x)", "anos": "2018-19"}
+    ]
 }
 
 MVPS_NBA = [
@@ -144,6 +172,7 @@ st.markdown("""
         white-space: nowrap;
         backdrop-filter: blur(8px);
         transition: all 0.2s ease;
+        cursor: pointer;
     }
 
     .badge-official {
@@ -200,7 +229,7 @@ def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) ->
     return df
 
 @st.cache_data(ttl=86400)
-def obtener_premios_oficiales_nba(player_id: int, player_name: str = "") -> List[str]:
+def obtener_premios_oficiales_nba(player_id: int, player_name: str = "") -> List[Dict[str, str]]:
     if player_name in PALMARES_ESTRELLAS:
         return PALMARES_ESTRELLAS[player_name]
         
@@ -214,12 +243,22 @@ def obtener_premios_oficiales_nba(player_id: int, player_name: str = "") -> List
         awards_df = playerawards.PlayerAwards(player_id=player_id, headers=headers, timeout=5).get_data_frames()[0]
         if awards_df.empty:
             return []
-        conteo = awards_df['DESCRIPTION'].value_counts()
+            
+        awards_df = awards_df[~awards_df['DESCRIPTION'].str.contains("Player of the Week|Player of the Month", na=False)]
+        
         premios_formateados = []
-        for premio, cantidad in conteo.items():
-            if "Player of the Week" in premio or "Player of the Month" in premio:
-                continue
-            premios_formateados.append(f"🏆 {premio} ({cantidad}x)" if cantidad > 1 else f"🏆 {premio}")
+        for desc, group in awards_df.groupby('DESCRIPTION'):
+            cantidad = len(group)
+            col_season = 'SEASON' if 'SEASON' in group.columns else ('YEAR_AWARDED' if 'YEAR_AWARDED' in group.columns else None)
+            
+            if col_season and not group[col_season].isna().all():
+                anos_str = ", ".join(group[col_season].dropna().astype(str).tolist())
+            else:
+                anos_str = "Temporadas registradas"
+                
+            label = f"🏆 {desc} ({cantidad}x)" if cantidad > 1 else f"🏆 {desc}"
+            premios_formateados.append({"texto": label, "anos": anos_str})
+            
         return premios_formateados[:8]
     except Exception:
         return []
@@ -291,6 +330,65 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
         badges.append({"texto": "⚡ 62%+ TS", "clase": "badge-chip-gold"})
         
     return badges
+
+def parsear_consulta_natural(texto_consulta: str) -> str:
+    text = texto_consulta.lower()
+    
+    is_mvp = bool(re.search(r'\b(mvps?)\b', text))
+    is_allstar = bool(re.search(r'\b(all\s*stars?|allstar)\b', text))
+    text = re.sub(r'\b(mvps?|all\s*stars?|allstar)\b', ' ', text)
+
+    operadores_map = [
+        (r'm[áa]s de|mayor(?:es)? a|superior(?:es)? a|por encima de', '>='),
+        (r'm[eé]nos de|menor(?:es)? a|inferior(?:es)? a|por debajo de', '<='),
+        (r'igual a|exactamente', '=='),
+        (r'\+(\d+(?:\.\d+)?)', r'>= \1'),
+        (r'\-(\d+(?:\.\d+)?)', r'<= \1')
+    ]
+    for pat, op in operadores_map:
+        text = re.sub(pat, op, text)
+
+    metricas_map = [
+        (r'\b(puntos|pts|anotaci[oó]n)\b', 'PTS'),
+        (r'\b(minutos|min|mins|tiempo)\b', 'MIN'),
+        (r'\b(rebotes|reb|capturas)\b', 'REB'),
+        (r'\b(asistencias|ast|pases)\b', 'AST'),
+        (r'\b(robos|stl|recuperaciones)\b', 'STL'),
+        (r'\b(tapones|bloqueos|blk)\b', 'BLK'),
+        (r'\b(triples|3pm|fg3m)\b', 'FG3M'),
+        (r'\b(partidos|pj|juegos|encuentros)\b', 'GP'),
+        (r'\b(p[eé]rdidas|perdidas|tov|turnovers)\b', 'TOV'),
+        (r'\b(net rating|net_rtg)\b', 'NET_RTG'),
+        (r'\b(off rating|off_rtg)\b', 'OFF_RTG'),
+        (r'\b(def rating|def_rtg)\b', 'DEF_RTG'),
+        (r'\b(z-custom|z_custom)\b', 'Z_CUSTOM')
+    ]
+    for pat, col in metricas_map:
+        text = re.sub(pat, col, text)
+
+    condiciones = []
+    if is_mvp:
+        condiciones.append("IS_MVP == True")
+    if is_allstar:
+        condiciones.append("IS_ALLSTAR == True")
+
+    text_clean = re.sub(r'\b(partidos?|jugados?|con|que|tengan|promedien|por|de|media|en|promedio|al|menos|como|m[ií]nimo|y|además|ademas)\b', ' ', text)
+
+    pattern_a = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s*(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)'
+    for m, op, val in re.findall(pattern_a, text_clean):
+        condiciones.append(f"{m} {op} {val}")
+        text_clean = re.sub(rf'\b{m}\s*{re.escape(op)}\s*{val}', ' ', text_clean)
+
+    pattern_b = r'(>=|<=|==|>|<)\s*(\d+(?:\.\d+)?)\s*\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\b'
+    for op, val, m in re.findall(pattern_b, text_clean):
+        condiciones.append(f"{m} {op} {val}")
+        text_clean = re.sub(rf'{re.escape(op)}\s*{val}\s*\b{m}\b', ' ', text_clean)
+
+    pattern_c = r'\b(GP|MIN|PTS|REB|AST|STL|BLK|FG3M|TOV|NET_RTG|OFF_RTG|DEF_RTG|Z_CUSTOM)\s+(\d+(?:\.\d+)?)'
+    for m, val in re.findall(pattern_c, text_clean):
+        condiciones.append(f"{m} >= {val}")
+
+    return " and ".join(condiciones) if condiciones else texto_consulta.strip()
 
 # ==========================================
 # 3. INTERFAZ Y NAVEGACIÓN (STREAMLIT)
@@ -374,7 +472,7 @@ with tab2:
         premios_oficiales = obtener_premios_oficiales_nba(player_id, p_data['PLAYER_NAME'])
         insignias_fan = calcular_insignias_fantasy(p_data)
 
-        html_oficiales = "".join([f'<div class="badge-chip badge-official">{p}</div>' for p in premios_oficiales])
+        html_oficiales = "".join([f'<div class="badge-chip badge-official" title="Temporadas: {p["anos"]}">{p["texto"]}</div>' for p in premios_oficiales])
         html_fantasy = "".join([f'<div class="badge-chip {b["clase"]}">{b["texto"]}</div>' for b in insignias_fan])
 
         st.markdown(f"""<div class="player-hero-card">
