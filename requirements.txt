@@ -2,3 +2,6 @@ requests
 pandas
 python-dotenv
 nba_api
+numpy
+streamlit
+plotly
