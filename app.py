@@ -76,7 +76,6 @@ st.markdown("""
         margin-bottom: 0px !important;
     }
     
-    /* Resaltado dinámico para Tarjetas KPI (Hover Animation) */
     div[data-testid="stMetric"] { 
         background: rgba(30, 41, 59, 0.5) !important; 
         border: 1px solid rgba(255, 255, 255, 0.08) !important; 
@@ -92,7 +91,6 @@ st.markdown("""
         background: rgba(30, 41, 59, 0.8) !important;
     }
     
-    /* Hero Card & Glassmorphism */
     .player-hero-card {
         background: linear-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.85) 100%);
         border: 1px solid rgba(255, 255, 255, 0.12);
@@ -160,7 +158,6 @@ st.markdown("""
 # ==========================================
 
 def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) -> pd.DataFrame:
-    """Calcula métricas avanzadas y Z_CUSTOM sobre cualquier DataFrame."""
     df = df_input.copy()
     cols_z_activas = [f"Z_{cat}" for cat in CATEGORIAS if cat not in punts_sel]
     
@@ -170,7 +167,6 @@ def calcular_metricas_avanzadas(df_input: pd.DataFrame, punts_sel: List[str]) ->
     df['STOCKS'] = df['STL'] + df['BLK']
     df['USG_EST'] = ((df['FGA'] + 0.44 * df['FTA'] + df['TOV']) / df['MIN'].replace(0, np.nan) * 100).fillna(0)
     
-    # Ratings
     df['OFF_RTG'] = (108 + (df['Z_PTS'] + df['Z_AST'] + df['Z_FG3M'] + df['Z_FG_PCT'] + df['Z_FT_PCT']) * 3.2).round(1)
     df['DEF_RTG'] = (112 - (df['Z_REB'] + df['Z_STL'] + df['Z_BLK'] - df['Z_TOV']) * 2.8).round(1)
     df['NET_RTG'] = (df['OFF_RTG'] - df['DEF_RTG']).round(1)
@@ -261,7 +257,6 @@ def calcular_insignias_fantasy(p_data: pd.Series) -> List[Dict[str, str]]:
     return badges
 
 def parsear_consulta_natural(texto_consulta: str) -> str:
-    """Parsea frases coloquiales en español a sintaxis Pandas (.query)."""
     text = texto_consulta.lower()
     
     text = re.sub(r'(<|<=|>|>=|==)(\d+)', r'\1 \2', text)
@@ -391,7 +386,7 @@ with tab1:
     cols_float = df_display.select_dtypes(include=['float64']).columns
     df_display[cols_float] = df_display[cols_float].round(2)
 
-    st.dataframe(df_display, use_container_width=True, hide_index=True, column_config=COLUMN_CONFIG)
+    st.dataframe(df_display, width="stretch", hide_index=True, column_config=COLUMN_CONFIG)
     st.download_button(
         label="📥 Descargar Dataset Procesado (CSV)",
         data=df_display.to_csv(index=False, encoding='utf-8-sig'),
@@ -419,38 +414,35 @@ with tab2:
         html_oficiales = "".join([f'<div class="badge-chip badge-official">{p}</div>' for p in premios_oficiales])
         html_fantasy = "".join([f'<div class="badge-chip {b["clase"]}">{b["texto"]}</div>' for b in insignias_fan])
 
-        st.markdown(f"""
-        <div class="player-hero-card">
-            <div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
-                <img src="{img_url}" style="width: 125px; border-radius: 16px; background: #0F172A; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.4);">
-                <div style="flex: 1; min-width: 280px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <h2 style="margin:0; font-size: 2.1rem; font-weight: 800; color: #F8FAFC; letter-spacing: -0.5px;">{p_data['PLAYER_NAME']}</h2>
-                        <span style="background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%); color: #0F172A; font-weight: 800; padding: 6px 16px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);">
-                            RANK #{p_data['RANK']}
-                        </span>
-                    </div>
-                    <p style="margin: 0 0 12px 0; color: #94A3B8; font-size: 14px; font-weight: 600;">
-                        <span style="color: #38BDF8;">{p_data['TEAM_ABBREVIATION']}</span> &nbsp;•&nbsp; {p_data['GP']} PJ &nbsp;•&nbsp; {p_data['MIN']:.1f} MIN/G
-                    </p>
-                    
-                    <div style="margin-bottom: 10px;">
-                        <span style="font-size: 11px; color: #F59E0B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">🥇 Palmarés Oficial NBA</span>
-                        <div class="badge-container">
-                            {html_oficiales if html_oficiales else '<div class="badge-chip badge-official">Sin premios registrados</div>'}
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <span style="font-size: 11px; color: #38BDF8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">⚡ Hit Táctico Fantasy</span>
-                        <div class="badge-container">
-                            {html_fantasy}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Se eliminan los espacios de sangrado para que Markdown no interprete el HTML como un bloque de código
+        st.markdown(f"""<div class="player-hero-card">
+<div style="display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+<img src="{img_url}" style="width: 125px; border-radius: 16px; background: #0F172A; border: 2px solid rgba(56, 189, 248, 0.3); box-shadow: 0 8px 20px rgba(0,0,0,0.4);">
+<div style="flex: 1; min-width: 280px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+<h2 style="margin:0; font-size: 2.1rem; font-weight: 800; color: #F8FAFC; letter-spacing: -0.5px;">{p_data['PLAYER_NAME']}</h2>
+<span style="background: linear-gradient(135deg, #38BDF8 0%, #0284C7 100%); color: #0F172A; font-weight: 800; padding: 6px 16px; border-radius: 12px; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);">
+RANK #{p_data['RANK']}
+</span>
+</div>
+<p style="margin: 0 0 12px 0; color: #94A3B8; font-size: 14px; font-weight: 600;">
+<span style="color: #38BDF8;">{p_data['TEAM_ABBREVIATION']}</span> &nbsp;•&nbsp; {p_data['GP']} PJ &nbsp;•&nbsp; {p_data['MIN']:.1f} MIN/G
+</p>
+<div style="margin-bottom: 10px;">
+<span style="font-size: 11px; color: #F59E0B; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">🥇 Palmarés Oficial NBA</span>
+<div class="badge-container">
+{html_oficiales if html_oficiales else '<div class="badge-chip badge-official">Sin premios registrados</div>'}
+</div>
+</div>
+<div>
+<span style="font-size: 11px; color: #38BDF8; text-transform: uppercase; font-weight: 700; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">⚡ Hit Táctico Fantasy</span>
+<div class="badge-container">
+{html_fantasy}
+</div>
+</div>
+</div>
+</div>
+</div>""", unsafe_allow_html=True)
 
         m1, m2, m3, m4, m5 = st.columns(5)
         m1.metric("Off Rating", f"{p_data['OFF_RTG']:.1f}")
@@ -493,14 +485,14 @@ with tab2:
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A',
                     xaxis=dict(gridcolor='#334155'), yaxis=dict(gridcolor='#334155')
                 )
-                st.plotly_chart(fig_area, use_container_width=True)
+                st.plotly_chart(fig_area, width="stretch")
 
                 st.markdown("---")
                 st.markdown("### 📋 Filtro Interactivo de Temporada Histórica")
                 temp_hist_choice = st.selectbox("Selecciona una temporada para consultar el desglose completo:", df_hist['TEMPORADA'].tolist())
                 row_temp = df_hist[df_hist['TEMPORADA'] == temp_hist_choice].copy()
                 cols_show_hist = [c for c in COLS_FULL if c in row_temp.columns]
-                st.dataframe(row_temp[cols_show_hist], use_container_width=True, hide_index=True, column_config=COLUMN_CONFIG)
+                st.dataframe(row_temp[cols_show_hist], width="stretch", hide_index=True, column_config=COLUMN_CONFIG)
 
         with p_tab2:
             st.markdown("### 🔍 Asistente de Consulta de Partidos (Game Log)")
@@ -551,7 +543,7 @@ with tab2:
                 cols_gl_vista = ['GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
                 st.dataframe(
                     df_gl_filtrado[cols_gl_vista], 
-                    use_container_width=True, 
+                    width="stretch", 
                     hide_index=True,
                     column_config={
                         "GAME_DATE": "Fecha",
@@ -577,14 +569,14 @@ with tab2:
                     title=f"Huella Radar: {jugador_sel}", height=400,
                     paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
                 )
-                st.plotly_chart(fig_radar, use_container_width=True)
+                st.plotly_chart(fig_radar, width="stretch")
 
             with c_bar:
                 z_df = pd.DataFrame({'Categoría': CATEGORIAS, 'Z-Score': z_values})
                 z_df['Color'] = z_df['Z-Score'].apply(lambda x: '#10B981' if x >= 0 else '#EF4444')
                 fig_bar = px.bar(z_df, x='Categoría', y='Z-Score', color='Color', color_discrete_map='identity', title="Aportación Neta por Categoría (Z-Score)")
                 fig_bar.update_layout(template="plotly_dark", height=400, showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, width="stretch")
 
 # TAB 3: COMPARADOR MULTI-JUGADOR
 with tab3:
@@ -609,7 +601,7 @@ with tab3:
                 ))
 
             fig_comp.update_layout(template="plotly_dark", polar=dict(bgcolor='#0F172A', radialaxis=dict(visible=True, range=[-3, 4], gridcolor='#334155')), title=f"Superposición Radar ({len(jugadores_sel)} Jugadores)", height=500, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_comp, use_container_width=True)
+            st.plotly_chart(fig_comp, width="stretch")
 
         else:
             metric_comp_choice = st.selectbox("Métrica a comparar a lo largo de las temporadas:", options=['Z_CUSTOM', 'PTS', 'REB', 'AST', 'OFF_RTG', 'DEF_RTG', 'NET_RTG', 'TS_PCT'])
@@ -633,12 +625,12 @@ with tab3:
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A',
                 xaxis=dict(gridcolor='#334155'), yaxis=dict(gridcolor='#334155')
             )
-            st.plotly_chart(fig_hist_multi, use_container_width=True)
+            st.plotly_chart(fig_hist_multi, width="stretch")
 
         cols_comp = list(dict.fromkeys(COLS_FULL + [f"Z_{cat}" for cat in CATEGORIAS]))
         df_comp_table = df_ranking[df_ranking['PLAYER_NAME'].isin(jugadores_sel)][cols_comp].copy()
         df_comp_table[df_comp_table.select_dtypes(include=['float64']).columns] = df_comp_table.select_dtypes(include=['float64']).round(2)
-        st.dataframe(df_comp_table, use_container_width=True, hide_index=True, column_config=COLUMN_CONFIG)
+        st.dataframe(df_comp_table, width="stretch", hide_index=True, column_config=COLUMN_CONFIG)
 
 # TAB 4: SCATTER PLOT
 with tab4:
@@ -682,7 +674,7 @@ with tab4:
     fig_scatter.add_annotation(x=0.02, y=0.02, xref="paper", yref="paper", text=f"📉 ROL SECUNDARIO<br>(- {eje_y} / - {eje_x})", showarrow=False, align="left", font=dict(size=12, color="#EF4444"), bgcolor="rgba(15, 23, 42, 0.85)", bordercolor="#EF4444", borderwidth=1, borderpad=6)
 
     fig_scatter.update_layout(template="plotly_dark", height=700, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A', font=dict(color="#F8FAFC"), coloraxis_showscale=False)
-    st.plotly_chart(fig_scatter, use_container_width=True)
+    st.plotly_chart(fig_scatter, width="stretch")
 
 # TAB 5: ASISTENTE NL Y QUERY BUILDER GLOBAL
 with tab5:
@@ -760,7 +752,7 @@ with tab5:
                         cols_game_display = ['PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'WL', 'MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FT_PCT', 'TOV']
                         st.dataframe(
                             df_partidos_filtrados[cols_game_display],
-                            use_container_width=True,
+                            width="stretch",
                             hide_index=True,
                             column_config={
                                 "PLAYER_NAME": "Jugador",
@@ -791,7 +783,7 @@ with tab5:
                 else:
                     st.dataframe(
                         df_filtrado_ast[COLS_FULL], 
-                        use_container_width=True, 
+                        width="stretch", 
                         hide_index=True, 
                         column_config=COLUMN_CONFIG
                     )
@@ -822,7 +814,7 @@ with tab5:
                             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#0F172A',
                             xaxis_title="", xaxis_tickangle=-45
                         )
-                        st.plotly_chart(fig_ast_bar, use_container_width=True)
+                        st.plotly_chart(fig_ast_bar, width="stretch")
 
                     with col_vis2:
                         st.markdown("#### 👤 Ficha Express de Jugador")
@@ -857,7 +849,7 @@ with tab5:
                             height=260, margin=dict(l=20, r=20, t=20, b=20),
                             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
                         )
-                        st.plotly_chart(fig_mini_radar, use_container_width=True)
+                        st.plotly_chart(fig_mini_radar, width="stretch")
 
         except Exception as e:
             st.error(f"⚠️ Error al interpretar la consulta condicional. Por favor revisa la sintaxis. Detalle: {e}")
