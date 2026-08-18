@@ -1,82 +1,113 @@
-# -*- coding: utf-8 -*-
-import sys
+﻿# -*- coding: utf-8 -*-
+"""
+Script ETL Offline — Generador Multitemporada de Datasets L2
+Recorre cada temporada de L2_fantasy/ y genera sus respectivos Game Logs y Palmarés en CSV.
+"""
+
 import os
+import time
 import pandas as pd
-import numpy as np
+from nba_api.stats.endpoints import playerawards, playergamelog
 
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
-
-CARPETA_L1 = "L1_fantasy"
 CARPETA_L2 = "L2_fantasy"
 
-CATEGORIAS_CONTEO = ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'TOV']
+def parse_min(val):
+    """Convierte el formato de minutos de texto (34:15) a número flotante (34.25)."""
+    if pd.isna(val): return 0.0
+    val_str = str(val).strip()
+    if ':' in val_str:
+        parts = val_str.split(':')
+        try: return float(parts[0]) + float(parts[1]) / 60.0
+        except: return 0.0
+    try: return float(val_str)
+    except: return 0.0
 
-def calcular_z_scores_ponderados(df, top_n_jugadores=150):
-    # 1. Filtro inicial de volumen
-    df_filtrado = df[df['GP'] >= 15].copy()
-    
-    # 2. Pool de control (Top jugadores por minutos)
-    pool = df_filtrado.sort_values(by='MIN', ascending=False).head(top_n_jugadores)
-    
-    df_z = df_filtrado.copy()
-
-    # Medias globales del pool de control
-    media_fg_pct = pool['FG_PCT'].mean()
-    media_ft_pct = pool['FT_PCT'].mean()
-
-    # 3. Calculo de Impacto Ponderado para porcentajes
-    df_z['IMPACTO_FG'] = (df_z['FG_PCT'] - media_fg_pct) * df_z['FGA']
-    df_z['IMPACTO_FT'] = (df_z['FT_PCT'] - media_ft_pct) * df_z['FTA']
-
-    # Recalcular medias y desviaciones de impactos en el pool
-    pool_z = df_z.sort_values(by='MIN', ascending=False).head(top_n_jugadores)
-    
-    # Z-Scores Porcentajes Ponderados
-    df_z['Z_FG_PCT'] = (df_z['IMPACTO_FG'] - pool_z['IMPACTO_FG'].mean()) / pool_z['IMPACTO_FG'].std()
-    df_z['Z_FT_PCT'] = (df_z['IMPACTO_FT'] - pool_z['IMPACTO_FT'].mean()) / pool_z['IMPACTO_FT'].std()
-
-    # 4. Z-Scores para categorias de conteo
-    for cat in CATEGORIAS_CONTEO:
-        media = pool[cat].mean()
-        desviacion = pool[cat].std()
-
-        if cat == 'TOV':
-            df_z[f'Z_{cat}'] = -1 * ((df_z[cat] - media) / desviacion)
-        else:
-            df_z[f'Z_{cat}'] = (df_z[cat] - media) / desviacion
-
-    # 5. Suma Z-TOTAL (9 categorias)
-    columnas_z = ['Z_PTS', 'Z_REB', 'Z_AST', 'Z_STL', 'Z_BLK', 'Z_FG3M', 'Z_FG_PCT', 'Z_FT_PCT', 'Z_TOV']
-    df_z['Z_TOTAL'] = df_z[columnas_z].sum(axis=1)
-
-    return df_z.sort_values(by='Z_TOTAL', ascending=False)
-
-def procesar_capa_l2():
+def generar_datasets_L2():
     if not os.path.exists(CARPETA_L2):
-        os.makedirs(CARPETA_L2)
+        print(f"❌ La carpeta '{CARPETA_L2}' no existe.")
+        return
 
-    archivos = [f for f in os.listdir(CARPETA_L1) if f.endswith('.csv')]
-    print(f"Procesando transformacion ponderada L1 -> L2...\n")
+    # Buscar archivos de promedios L2_YYYY_YY.csv ignorando gamelogs y palmares
+    archivos_promedios = [
+        f for f in os.listdir(CARPETA_L2) 
+        if f.startswith("L2_") and f.endswith(".csv") 
+        and not f.startswith("L2_gamelogs_") and f != "L2_palmares.csv"
+    ]
 
-    for archivo in archivos:
-        ruta_entrada = os.path.join(CARPETA_L1, archivo)
-        df_raw = pd.read_csv(ruta_entrada)
+    headers = {
+        'Host': 'stats.nba.com',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Referer': 'https://www.nba.com/'
+    }
 
-        df_valorado = calcular_z_scores_ponderados(df_raw)
+    jugadores_procesados_palmares = set()
+    palmares_acumulado = []
 
-        columnas_z = ['Z_PTS', 'Z_REB', 'Z_AST', 'Z_STL', 'Z_BLK', 'Z_FG3M', 'Z_FG_PCT', 'Z_FT_PCT', 'Z_TOV']
-        cols_finales = [
-            'PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GP', 'MIN', 'Z_TOTAL'
-        ] + columnas_z + ['PTS', 'REB', 'AST', 'STL', 'BLK', 'FG3M', 'FG_PCT', 'FGA', 'FT_PCT', 'FTA', 'TOV']
+    for archivo in archivos_promedios:
+        temporada = archivo.replace("L2_", "").replace(".csv", "")
+        season_fmt = temporada.replace("_", "-")
+        ruta_csv = os.path.join(CARPETA_L2, archivo)
+        
+        df_players = pd.read_csv(ruta_csv)
+        print(f"\n🏀 Processing Temporada: {season_fmt} ({len(df_players)} jugadores)...")
+        
+        gamelogs_temporada = []
 
-        df_limpio = df_valorado[cols_finales]
+        for idx, row in df_players.iterrows():
+            p_id = int(row['PLAYER_ID'])
+            p_name = row['PLAYER_NAME']
+            p_team = row['TEAM_ABBREVIATION']
 
-        nombre_salida = f"L2_{archivo.replace('l1_nba_raw_', '').replace('nba_raw_', '')}"
-        ruta_salida = os.path.join(CARPETA_L2, nombre_salida)
+            print(f"   [{idx+1}/{len(df_players)}] {p_name} (ID: {p_id})")
 
-        df_limpio.to_csv(ruta_salida, index=False, encoding='utf-8-sig')
-        print(f"Procesado con exito: {nombre_salida}")
+            # 1. Extracción de Palmarés (solo una vez por jugador único en la liga)
+            if p_id not in jugadores_procesados_palmares:
+                jugadores_procesados_palmares.add(p_id)
+                try:
+                    aw = playerawards.PlayerAwards(player_id=p_id, headers=headers, timeout=5).get_data_frames()[0]
+                    if not aw.empty:
+                        aw = aw[~aw['DESCRIPTION'].str.contains("Player of the Week|Player of the Month", na=False, case=False)]
+                        for desc, group in aw.groupby('DESCRIPTION'):
+                            col_s = 'SEASON' if 'SEASON' in group.columns else ('YEAR_AWARDED' if 'YEAR_AWARDED' in group.columns else None)
+                            anos = ", ".join(group[col_s].dropna().astype(str).unique().tolist()) if col_s else "Registrado"
+                            palmares_acumulado.append({
+                                'PLAYER_ID': p_id,
+                                'PLAYER_NAME': p_name,
+                                'TITULO': f"🏆 {desc} ({len(group)}x)" if len(group) > 1 else f"🏆 {desc}",
+                                'ANOS': anos
+                            })
+                except Exception as e:
+                    pass
+
+            # 2. Extracción de Game Logs para la temporada actual
+            try:
+                gl = playergamelog.PlayerGameLog(player_id=p_id, season=season_fmt, headers=headers, timeout=5).get_data_frames()[0]
+                if not gl.empty:
+                    gl['PLAYER_NAME'] = p_name
+                    gl['TEAM_ABBREVIATION'] = p_team
+                    gamelogs_temporada.append(gl)
+            except Exception as e:
+                pass
+
+            time.sleep(0.3)
+
+        # Guardar Game Logs de la temporada
+        if gamelogs_temporada:
+            df_gl_temp = pd.concat(gamelogs_temporada, ignore_index=True)
+            df_gl_temp['MIN'] = df_gl_temp['MIN'].apply(parse_min)
+            df_gl_temp['STOCKS'] = df_gl_temp['STL'] + df_gl_temp['BLK']
+            
+            ruta_gl_out = os.path.join(CARPETA_L2, f"L2_gamelogs_{temporada}.csv")
+            df_gl_temp.to_csv(ruta_gl_out, index=False, encoding='utf-8-sig')
+            print(f"✅ Game Logs guardados en {ruta_gl_out}")
+
+    # Guardar Palmarés Global Unificado
+    if palmares_acumulado:
+        df_palmares = pd.DataFrame(palmares_acumulado)
+        ruta_palmares_out = os.path.join(CARPETA_L2, "L2_palmares.csv")
+        df_palmares.to_csv(ruta_palmares_out, index=False, encoding='utf-8-sig')
+        print(f"\n🏆 Palmarés global guardado en {ruta_palmares_out}")
 
 if __name__ == "__main__":
-    procesar_capa_l2()
+    generar_datasets_L2()
