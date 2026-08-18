@@ -716,7 +716,7 @@ with tab5:
             if modo_busqueda == "⚡ Partidos Concretos (Game Logs de la Liga)":
                 st.info("🔎 Escaneando historial de partidos de los jugadores activos de la temporada...")
                 
-                top_players_gamelog = df_ranking.head(60)
+                top_players_gamelog = df_ranking.head(25)
                 partidos_acumulados = []
                 
                 for _, p_row in top_players_gamelog.iterrows():
